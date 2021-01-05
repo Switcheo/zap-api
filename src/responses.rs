@@ -35,11 +35,3 @@ pub struct ViewBlockEvent {
   pub details: String,
   pub params: Value,
 }
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct SwapParams {
-  pub address: String,
-  pub name: String,
-  pub details: String,
-  pub params: Value,
-}

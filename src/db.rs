@@ -32,3 +32,18 @@ pub fn insert_swap(
 
   Ok(())
 }
+
+/// Inserts a new liquidity change into the db.
+pub fn insert_liquidity_change(
+  // prevent collision with `name` column imported inside the function
+  new_liquidity_change: models::NewLiquidityChange,
+  conn: &PgConnection,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::liquidity_changes::dsl::*;
+
+  diesel::insert_into(liquidity_changes)
+    .values(&new_liquidity_change)
+    .execute(conn)?;
+
+  Ok(())
+}

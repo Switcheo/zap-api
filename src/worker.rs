@@ -6,6 +6,7 @@ use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use std::{fmt, thread, time};
+use std::ops::Neg;
 use std::str::FromStr;
 use std::convert::TryInto;
 
@@ -30,6 +31,8 @@ impl Actor for Worker {
     println!("Worker is alive!");
     let pool = self.db_pool.clone();
     let addr = SyncArbiter::start(3, move || EventFetchActor::new(pool.clone()));
+    addr.do_send(FetchMints { page_number: 1, next: addr.clone() });
+    addr.do_send(FetchBurns { page_number: 1, next: addr.clone() });
     addr.do_send(FetchSwaps { page_number: 1, next: addr.clone() });
   }
 
@@ -86,6 +89,7 @@ struct FetchSwaps {
 #[rtype(result = "Result<bool, FetchError>")]
 struct FetchMints {
   page_number: u16,
+  next: actix::Addr<EventFetchActor>
 }
 
 /// Define messages
@@ -93,6 +97,7 @@ struct FetchMints {
 #[rtype(result = "Result<bool, FetchError>")]
 struct FetchBurns {
   page_number: u16,
+  next: actix::Addr<EventFetchActor>
 }
 
 /// Define actor
@@ -124,6 +129,30 @@ impl EventFetchActor {
       db_pool: db_pool
     }
   }
+
+  fn get_and_parse(&mut self, page_number: u16, event: &str) -> Result<responses::ViewBlockResponse, FetchError> {
+    println!("Fetching {} page {}", event, page_number);
+
+    let url = Url::parse_with_params(
+      format!(
+        "https://api.viewblock.io/v1/zilliqa/contracts/{}/events/{}",
+        self.contract_hash,
+        event
+      )
+      .as_str(),
+      &[
+        ("page", page_number.to_string()),
+        ("network", self.network.to_string()),
+      ],
+    ).expect("URL parsing failed!");
+
+    let resp = self.client.get(url).send()?;
+    let body = resp.text()?;
+
+    println!("Parsing page {}", page_number);
+    let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
+    return Ok(result)
+  }
 }
 
 impl Actor for EventFetchActor {
@@ -134,31 +163,117 @@ impl Actor for EventFetchActor {
   }
 }
 
-/// Define handler for `Ping` message
+/// Define handler for `FetchMints` message
+impl Handler<FetchMints> for EventFetchActor {
+  type Result = Result<bool, FetchError>;
+
+  fn handle(&mut self, msg: FetchMints, _ctx: &mut SyncContext<Self>) -> Self::Result {
+    let result = self.get_and_parse(msg.page_number, "Minted")?;
+
+    if result.txs.len() == 0 {
+      println!("Done with mints.");
+      thread::sleep(time::Duration::new(60, 0));
+      msg.next.do_send(FetchMints { page_number: 0, next: msg.next.clone() });
+      return Ok(false);
+    }
+
+    for tx in result.txs {
+      for (i, event) in tx.events.iter().enumerate() {
+        let name = event.name.as_str();
+        if name == "Minted" {
+          let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
+          let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
+          let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+
+          let add_liquidity = models::NewLiquidityChange {
+            transaction_hash: &tx.hash,
+            event_sequence: &(i as i32),
+            block_height: &tx.block_height,
+            block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
+            initiator_address: address,
+            token_address: pool,
+            change_amount: &BigDecimal::from_str(amount).unwrap(),
+          };
+
+          println!("Inserting: {:?}", add_liquidity);
+
+          let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+          let res = db::insert_liquidity_change(add_liquidity, &conn);
+          match res {
+            Err(err) => println!("Error inserting: {}", err.to_string()),
+            Ok(n) => n,
+          }
+        }
+      }
+    }
+
+    println!("Next page..");
+    thread::sleep(time::Duration::new(1, 0));
+    msg.next.do_send(FetchMints { page_number: msg.page_number + 1, next: msg.next.clone() });
+    return Ok(true)
+  }
+}
+
+/// Define handler for `FetchBurns` message
+impl Handler<FetchBurns> for EventFetchActor {
+  type Result = Result<bool, FetchError>;
+
+  fn handle(&mut self, msg: FetchBurns, _ctx: &mut SyncContext<Self>) -> Self::Result {
+    let result = self.get_and_parse(msg.page_number, "Burnt")?;
+
+    if result.txs.len() == 0 {
+      println!("Done with burns.");
+      thread::sleep(time::Duration::new(60, 0));
+      msg.next.do_send(FetchBurns { page_number: 0, next: msg.next.clone() });
+      return Ok(false);
+    }
+
+    for tx in result.txs {
+      for (i, event) in tx.events.iter().enumerate() {
+        let name = event.name.as_str();
+        if name == "Burnt" {
+          let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
+          let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
+          let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+
+          let remove_liquidity = models::NewLiquidityChange {
+            transaction_hash: &tx.hash,
+            event_sequence: &(i as i32),
+            block_height: &tx.block_height,
+            block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
+            initiator_address: address,
+            token_address: pool,
+            change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
+          };
+
+          println!("Inserting: {:?}", remove_liquidity);
+
+          let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+          let res = db::insert_liquidity_change(remove_liquidity, &conn);
+          match res {
+            Err(err) => println!("Error inserting: {}", err.to_string()),
+            Ok(n) => n,
+          }
+        }
+      }
+    }
+
+    println!("Next page..");
+    thread::sleep(time::Duration::new(1, 0));
+    msg.next.do_send(FetchMints { page_number: msg.page_number + 1, next: msg.next.clone() });
+    return Ok(true)
+  }
+}
+
+/// Define handler for `FetchSwaps` message
 impl Handler<FetchSwaps> for EventFetchActor {
   type Result = Result<bool, FetchError>;
 
   fn handle(&mut self, msg: FetchSwaps, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    println!("Fetching swaps page {}", msg.page_number);
-    let url = Url::parse_with_params(
-      format!(
-        "https://api.viewblock.io/v1/zilliqa/contracts/{}/events/Swapped",
-        self.contract_hash
-      )
-      .as_str(),
-      &[
-        ("page", msg.page_number.to_string()),
-        ("network", self.network.to_string()),
-      ],
-    ).expect("URL parsing failed!");
-
-    let resp = self.client.get(url).send()?;
-    let body = resp.text()?;
-    println!("Parsing page {}", msg.page_number);
-    let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
+    let result = self.get_and_parse(msg.page_number, "Swapped")?;
 
     if result.txs.len() == 0 {
-      println!("Done.");
+      println!("Done with swaps.");
       thread::sleep(time::Duration::new(60, 0));
       msg.next.do_send(FetchSwaps { page_number: 0, next: msg.next.clone() });
       return Ok(false);
