@@ -1,12 +1,13 @@
 use serde::{Serialize};
 use chrono::{NaiveDateTime};
 use bigdecimal::{BigDecimal};
+use uuid::Uuid;
 
 use crate::schema::{swaps, liquidity_changes};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
-  pub id: i64,
+  pub id: Uuid,
   pub transaction_hash: String,
   pub event_sequence: i32,
   pub block_height: i32,
@@ -34,7 +35,7 @@ pub struct NewSwap<'a> {
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct LiquidityChange {
-  pub id: i64,
+  pub id: Uuid,
   pub transaction_hash: String,
   pub event_sequence: i32,
   pub block_height: i32,

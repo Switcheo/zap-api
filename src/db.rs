@@ -1,26 +1,70 @@
 
+use diesel::pg::Pg;
 use diesel::prelude::*;
 
 use crate::models;
+use crate::pagination::*;
 
 /// Run query using Diesel to find user by uid and return it.
 pub fn fetch_swaps(
   conn: &PgConnection,
-) -> Result<Vec<models::Swap>, diesel::result::Error> {
+  per_page: Option<i64>,
+  page: Option<i64>,
+  pool: &Option<String>,
+  address: &Option<String>,
+) -> Result<PaginatedResult<models::Swap>, diesel::result::Error> {
   // It is common when using Diesel with Actix web to import schema-related
   // modules inside a function's scope (rather than the normal module's scope)
   // to prevent import collisions and namespace pollution.
   use crate::schema::swaps::dsl::*;
 
-  Ok(swaps
-    .limit(50)
-    .load::<models::Swap>(conn)?
+  let mut query = swaps.into_boxed::<Pg>();
+
+  if let Some(pool) = pool {
+    query = query.filter(token_address.eq(pool));
+  }
+
+  if let Some(address) = address {
+    query = query.filter(initiator_address.eq(address));
+  }
+
+  Ok(query
+    .order(block_timestamp.desc())
+    .paginate(page)
+    .per_page(per_page)
+    .load_and_count_pages::<models::Swap>(conn)?)
+}
+
+/// Run query using Diesel to find user by uid and return it.
+pub fn fetch_liquidity_changes(
+  conn: &PgConnection,
+  per_page: Option<i64>,
+  page: Option<i64>,
+  pool: &Option<String>,
+  address: &Option<String>,
+) -> Result<PaginatedResult<models::LiquidityChange>, diesel::result::Error> {
+  use crate::schema::liquidity_changes::dsl::*;
+
+  let mut query = liquidity_changes.into_boxed::<Pg>();
+
+  if let Some(pool) = pool {
+    query = query.filter(token_address.eq(pool));
+  }
+
+  if let Some(address) = address {
+    query = query.filter(initiator_address.eq(address));
+  }
+
+  Ok(query
+    .order(block_timestamp.desc())
+    .paginate(page)
+    .per_page(per_page)
+    .load_and_count_pages::<models::LiquidityChange>(conn)?
   )
 }
 
 /// Inserts a new swap into the db.
 pub fn insert_swap(
-  // prevent collision with `name` column imported inside the function
   new_swap: models::NewSwap,
   conn: &PgConnection,
 ) -> Result<(), diesel::result::Error> {
@@ -35,7 +79,6 @@ pub fn insert_swap(
 
 /// Inserts a new liquidity change into the db.
 pub fn insert_liquidity_change(
-  // prevent collision with `name` column imported inside the function
   new_liquidity_change: models::NewLiquidityChange,
   conn: &PgConnection,
 ) -> Result<(), diesel::result::Error> {

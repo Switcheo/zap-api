@@ -1,5 +1,5 @@
 CREATE TABLE liquidity_changes (
-  id BIGSERIAL PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   transaction_hash VARCHAR NOT NULL,
   event_sequence INTEGER NOT NULL,
   block_height INTEGER NOT NULL,

@@ -1,6 +1,6 @@
 table! {
     liquidity_changes (id) {
-        id -> Int8,
+        id -> Uuid,
         transaction_hash -> Varchar,
         event_sequence -> Int4,
         block_height -> Int4,
@@ -13,7 +13,7 @@ table! {
 
 table! {
     swaps (id) {
-        id -> Int8,
+        id -> Uuid,
         transaction_hash -> Varchar,
         event_sequence -> Int4,
         block_height -> Int4,

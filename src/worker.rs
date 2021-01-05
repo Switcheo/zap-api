@@ -149,7 +149,8 @@ impl EventFetchActor {
     let resp = self.client.get(url).send()?;
     let body = resp.text()?;
 
-    println!("Parsing page {}", page_number);
+    println!("Parsing {} page {}", event, page_number);
+    println!("{}", body);
     let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
     return Ok(result)
   }
@@ -168,7 +169,7 @@ impl Handler<FetchMints> for EventFetchActor {
   type Result = Result<bool, FetchError>;
 
   fn handle(&mut self, msg: FetchMints, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, "Minted")?;
+    let result = self.get_and_parse(msg.page_number, "Mint")?;
 
     if result.txs.len() == 0 {
       println!("Done with mints.");
@@ -180,7 +181,7 @@ impl Handler<FetchMints> for EventFetchActor {
     for tx in result.txs {
       for (i, event) in tx.events.iter().enumerate() {
         let name = event.name.as_str();
-        if name == "Minted" {
+        if name == "Mint" {
           let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
           let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
           let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
@@ -260,7 +261,7 @@ impl Handler<FetchBurns> for EventFetchActor {
 
     println!("Next page..");
     thread::sleep(time::Duration::new(1, 0));
-    msg.next.do_send(FetchMints { page_number: msg.page_number + 1, next: msg.next.clone() });
+    msg.next.do_send(FetchBurns { page_number: msg.page_number + 1, next: msg.next.clone() });
     return Ok(true)
   }
 }
