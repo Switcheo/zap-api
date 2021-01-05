@@ -6,7 +6,7 @@
 #[macro_use]
 extern crate diesel;
 
-use actix::{Actor, Addr, Arbiter, Context, System};
+use actix::{Actor};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
@@ -15,6 +15,7 @@ mod db;
 mod models;
 mod schema;
 mod worker;
+mod responses;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -56,7 +57,7 @@ async fn main() -> std::io::Result<()> {
       .expect("Failed to create db pool.");
 
   // run worker
-  let _addr = worker::Worker.start();
+  let _addr = worker::Worker::new(pool.clone()).start();
 
   let bind = "127.0.0.1:3000";
   println!("Starting server at: {}", &bind);

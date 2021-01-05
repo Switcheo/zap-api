@@ -7,10 +7,28 @@ use crate::models;
 pub fn fetch_swaps(
   conn: &PgConnection,
 ) -> Result<Vec<models::Swap>, diesel::result::Error> {
+  // It is common when using Diesel with Actix web to import schema-related
+  // modules inside a function's scope (rather than the normal module's scope)
+  // to prevent import collisions and namespace pollution.
   use crate::schema::swaps::dsl::*;
 
   Ok(swaps
     .limit(50)
-    .load::<models::Swap>(conn)
-    .expect("Could not load swaps."))
+    .load::<models::Swap>(conn)?
+  )
+}
+
+/// Inserts a new swap into the db.
+pub fn insert_swap(
+  // prevent collision with `name` column imported inside the function
+  new_swap: models::NewSwap,
+  conn: &PgConnection,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::swaps::dsl::*;
+
+  diesel::insert_into(swaps)
+    .values(&new_swap)
+    .execute(conn)?;
+
+  Ok(())
 }
