@@ -18,3 +18,9 @@ reqwest = { version = "^0.10.9", features = ["blocking", "json"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 uuid = { version = "^0.6.5", features = ["serde"] }
+
+[[bin]]
+name = "zap-api"
+test = false
+bench = false
+path = "src/main.rs"

@@ -111,6 +111,17 @@ struct EventFetchActor {
 impl EventFetchActor {
   fn new(db_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
     let api_key = std::env::var("VIEWBLOCK_API_KEY").expect("VIEWBLOCK_API_KEY env var missing.");
+    let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
+    let network = match network_str.as_str() {
+      "testnet" => Network::TestNet,
+      "mainnet" => Network::MainNet,
+      _ => panic!("Invalid network string")
+    };
+    let contract_hash = String::from(match network_str.as_str() {
+      "testnet" => "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c",
+      "mainnet" => "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00",
+      _ => panic!("Invalid network string")
+    });
     let mut headers = HeaderMap::new();
     headers.insert(
       "X-APIKEY",
@@ -123,10 +134,10 @@ impl EventFetchActor {
       .expect("Failed to build client.");
 
     Self {
-      client: client,
-      network: Network::MainNet,
-      contract_hash: "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00".to_string(),
-      db_pool: db_pool
+      client,
+      network,
+      contract_hash,
+      db_pool,
     }
   }
 

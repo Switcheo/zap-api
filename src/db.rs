@@ -1,4 +1,5 @@
 
+use bigdecimal::{BigDecimal};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 
@@ -61,6 +62,33 @@ pub fn fetch_liquidity_changes(
     .per_page(per_page)
     .load_and_count_pages::<models::LiquidityChange>(conn)?
   )
+}
+
+/// Get liquidity for period
+pub fn get_liquidity_for_period(
+  conn: &PgConnection,
+  pool: &Option<String>,
+  start_timestamp: i64,
+  end_timestamp: i64,
+) -> Result<BigDecimal, diesel::result::Error> {
+  use crate::schema::liquidity_changes::dsl::*;
+
+  let mut query = liquidity_changes.into_boxed::<Pg>();
+
+  if let Some(pool) = pool {
+    query = query.filter(token_address.eq(pool));
+  }
+
+  let res = query
+    .select(diesel::dsl::sum(change_amount))
+    .filter(block_timestamp.gt(chrono::NaiveDateTime::from_timestamp(start_timestamp, 0)))
+    .filter(block_timestamp.lt(chrono::NaiveDateTime::from_timestamp(end_timestamp, 0)))
+    .first(conn)?;
+
+  match res {
+    Some(num) => Ok(num),
+    None => panic!("Null fetched for sum!")
+  }
 }
 
 /// Inserts a new swap into the db.

@@ -79,9 +79,6 @@ async fn get_liquidity_changes(
   Ok(HttpResponse::Ok().json(liquidity_changes))
 }
 
-/// Get current liquidity.
-///
-
 // generate epoch
 
 // get epoch
@@ -105,7 +102,7 @@ async fn main() -> std::io::Result<()> {
     let _addr = worker::Worker::new(pool.clone()).start();
   }
 
-  let bind = "127.0.0.1:3000";
+  let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   println!("Starting server at: {}", &bind);
   HttpServer::new(move || {
       App::new()
