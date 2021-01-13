@@ -6,6 +6,10 @@
 #[macro_use]
 extern crate diesel;
 
+#[macro_use]
+extern crate diesel_migrations;
+embed_migrations!();
+
 use actix::{Actor};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
 use diesel::prelude::*;
@@ -134,9 +138,7 @@ async fn get_weighted_liquidity(
 // split reward by pool and time weighted liquidity
 // if epoch 0, get swap_volume and split additional reward by volume
 
-// get epoch
-
-// get current liquidity
+// get epoch data
 
 // get volume for period
 
@@ -159,6 +161,10 @@ async fn main() -> std::io::Result<()> {
   if run_worker == "true" || run_worker == "t" || run_worker == "1" {
     let _addr = worker::Worker::new(pool.clone()).start();
   }
+
+  // run migrations
+  let conn = pool.get().expect("couldn't get db connection from pool");
+  embedded_migrations::run(&conn).expect("failed to run migrations.");
 
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   println!("Starting server at: {}", &bind);
