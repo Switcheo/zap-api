@@ -74,7 +74,7 @@ impl Network {
       },
       Network::TestNet => {
         match event {
-          Event::Minted => "",
+          Event::Minted => "0x9b8b5695c406d71137f5f420a67cf6b352ae865068530d293116dde072dbfdf6",
           Event::Burnt => "",
           Event::Swapped => "",
         }

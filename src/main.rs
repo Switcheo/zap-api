@@ -128,7 +128,6 @@ async fn get_weighted_liquidity(
   Ok(HttpResponse::Ok().json(liquidity))
 }
 
-
 // generate epoch
 // get pools (filtered for the ones to award - epoch 0 all, epoch 1 only xsgd & gzil)
 // for each pool:
