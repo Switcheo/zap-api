@@ -41,9 +41,53 @@ impl Actor for Worker {
   }
 }
 
+enum Event {
+  Minted,
+  Burnt,
+  Swapped,
+}
+
+impl fmt::Display for Event {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+    match *self {
+      Event::Minted => write!(f, "Mint"),
+      Event::Burnt => write!(f, "Burnt"),
+      Event::Swapped => write!(f, "Swapped"),
+    }
+  }
+}
+
 enum Network {
   MainNet,
   TestNet,
+}
+
+impl Network {
+  fn first_txn_hash_for(&self, event: &Event) -> &str {
+    match *self {
+      Network::MainNet => {
+        match event {
+          Event::Minted => "0x00a0e4800c709f38d97cd7e769c756a8c059e6aca5eaeace81509c8ab7eccdf4",
+          Event::Burnt => "0x9f53e01877d7b40db95d332c3172e1f0d628fd68eabc1e7fcf3316be5619fd50",
+          Event::Swapped => "0xee5c4cc44822ee48d2ea8466a4a03c9adb41635caac600e27700fc5e81d8d2dc",
+        }
+      },
+      Network::TestNet => {
+        match event {
+          Event::Minted => "",
+          Event::Burnt => "",
+          Event::Swapped => "",
+        }
+      },
+    }
+  }
+
+  fn contract_hash(&self) -> String {
+    String::from(match *self {
+      Network::TestNet => "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c",
+      Network::MainNet => "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00",
+    })
+  }
 }
 
 impl fmt::Display for Network {
@@ -54,7 +98,6 @@ impl fmt::Display for Network {
     }
   }
 }
-
 
 #[derive(Debug)]
 enum FetchError {
@@ -76,9 +119,11 @@ impl From<serde_json::Error> for FetchError {
   }
 }
 
+type FetchResult = Result<(), FetchError>;
+
 /// Define messages
 #[derive(Message)]
-#[rtype(result = "Result<bool, FetchError>")]
+#[rtype(result = "FetchResult")]
 struct FetchSwaps {
   page_number: u16,
   next: actix::Addr<EventFetchActor>
@@ -86,7 +131,7 @@ struct FetchSwaps {
 
 /// Define messages
 #[derive(Message)]
-#[rtype(result = "Result<bool, FetchError>")]
+#[rtype(result = "FetchResult")]
 struct FetchMints {
   page_number: u16,
   next: actix::Addr<EventFetchActor>
@@ -94,7 +139,7 @@ struct FetchMints {
 
 /// Define messages
 #[derive(Message)]
-#[rtype(result = "Result<bool, FetchError>")]
+#[rtype(result = "FetchResult")]
 struct FetchBurns {
   page_number: u16,
   next: actix::Addr<EventFetchActor>
@@ -117,11 +162,7 @@ impl EventFetchActor {
       "mainnet" => Network::MainNet,
       _ => panic!("Invalid network string")
     };
-    let contract_hash = String::from(match network_str.as_str() {
-      "testnet" => "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c",
-      "mainnet" => "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00",
-      _ => panic!("Invalid network string")
-    });
+    let contract_hash = network.contract_hash();
     let mut headers = HeaderMap::new();
     headers.insert(
       "X-APIKEY",
@@ -141,7 +182,7 @@ impl EventFetchActor {
     }
   }
 
-  fn get_and_parse(&mut self, page_number: u16, event: &str) -> Result<responses::ViewBlockResponse, FetchError> {
+  fn get_and_parse(&mut self, page_number: u16, event: Event) -> Result<responses::ViewBlockResponse, FetchError> {
     println!("Fetching {} page {}", event, page_number);
 
     let url = Url::parse_with_params(
@@ -161,9 +202,18 @@ impl EventFetchActor {
     let body = resp.text()?;
 
     println!("Parsing {} page {}", event, page_number);
-    println!("{}", body);
+    // println!("{}", body);
     let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
     return Ok(result)
+  }
+
+  fn backfill_complete_for(&self, event: Event) -> bool {
+    let hash = String::from(self.network.first_txn_hash_for(&event));
+    let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+    match event {
+      Event::Minted | Event::Burnt => db::liquidity_change_exists(&conn, hash).unwrap(),
+      Event::Swapped => db::swap_exists(&conn, hash).unwrap(),
+    }
   }
 }
 
@@ -177,16 +227,16 @@ impl Actor for EventFetchActor {
 
 /// Define handler for `FetchMints` message
 impl Handler<FetchMints> for EventFetchActor {
-  type Result = Result<bool, FetchError>;
+  type Result = FetchResult;
 
   fn handle(&mut self, msg: FetchMints, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, "Mint")?;
+    let result = self.get_and_parse(msg.page_number, Event::Minted)?;
 
     if result.txs.len() == 0 {
       println!("Done with mints.");
       thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchMints { page_number: 0, next: msg.next.clone() });
-      return Ok(false);
+      msg.next.do_send(FetchMints { page_number: 1, next: msg.next.clone() });
+      return Ok(());
     }
 
     for tx in result.txs {
@@ -212,7 +262,15 @@ impl Handler<FetchMints> for EventFetchActor {
           let conn = self.db_pool.get().expect("couldn't get db connection from pool");
           let res = db::insert_liquidity_change(add_liquidity, &conn);
           match res {
-            Err(err) => println!("Error inserting: {}", err.to_string()),
+            Err(err) => {
+              if self.backfill_complete_for(Event::Minted) {
+                println!("Fetched till last inserted mint.");
+                thread::sleep(time::Duration::new(60, 0));
+                msg.next.do_send(FetchMints { page_number: 1, next: msg.next.clone() });
+                return Ok(())
+              }
+              println!("Error inserting: {}", err.to_string())
+            },
             Ok(n) => n,
           }
         }
@@ -222,22 +280,22 @@ impl Handler<FetchMints> for EventFetchActor {
     println!("Next page..");
     thread::sleep(time::Duration::new(1, 0));
     msg.next.do_send(FetchMints { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(true)
+    return Ok(())
   }
 }
 
 /// Define handler for `FetchBurns` message
 impl Handler<FetchBurns> for EventFetchActor {
-  type Result = Result<bool, FetchError>;
+  type Result = FetchResult;
 
   fn handle(&mut self, msg: FetchBurns, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, "Burnt")?;
+    let result = self.get_and_parse(msg.page_number, Event::Burnt)?;
 
     if result.txs.len() == 0 {
       println!("Done with burns.");
       thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchBurns { page_number: 0, next: msg.next.clone() });
-      return Ok(false);
+      msg.next.do_send(FetchBurns { page_number: 1, next: msg.next.clone() });
+      return Ok(());
     }
 
     for tx in result.txs {
@@ -263,7 +321,15 @@ impl Handler<FetchBurns> for EventFetchActor {
           let conn = self.db_pool.get().expect("couldn't get db connection from pool");
           let res = db::insert_liquidity_change(remove_liquidity, &conn);
           match res {
-            Err(err) => println!("Error inserting: {}", err.to_string()),
+            Err(err) => {
+              if self.backfill_complete_for(Event::Burnt) {
+                println!("Fetched till last inserted burn.");
+                thread::sleep(time::Duration::new(60, 0));
+                msg.next.do_send(FetchBurns { page_number: 1, next: msg.next.clone() });
+                return Ok(())
+              }
+              println!("Error inserting: {}", err.to_string())
+            },
             Ok(n) => n,
           }
         }
@@ -273,22 +339,22 @@ impl Handler<FetchBurns> for EventFetchActor {
     println!("Next page..");
     thread::sleep(time::Duration::new(1, 0));
     msg.next.do_send(FetchBurns { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(true)
+    return Ok(())
   }
 }
 
 /// Define handler for `FetchSwaps` message
 impl Handler<FetchSwaps> for EventFetchActor {
-  type Result = Result<bool, FetchError>;
+  type Result = FetchResult;
 
   fn handle(&mut self, msg: FetchSwaps, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, "Swapped")?;
+    let result = self.get_and_parse(msg.page_number, Event::Swapped)?;
 
     if result.txs.len() == 0 {
       println!("Done with swaps.");
       thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchSwaps { page_number: 0, next: msg.next.clone() });
-      return Ok(false);
+      msg.next.do_send(FetchSwaps { page_number: 1, next: msg.next.clone() });
+      return Ok(());
     }
 
     for tx in result.txs {
@@ -337,7 +403,15 @@ impl Handler<FetchSwaps> for EventFetchActor {
           let conn = self.db_pool.get().expect("couldn't get db connection from pool");
           let res = db::insert_swap(new_swap, &conn);
           match res {
-            Err(err) => println!("Error inserting: {}", err.to_string()),
+            Err(err) => {
+              if self.backfill_complete_for(Event::Swapped) {
+                println!("Fetched till last inserted swap.");
+                thread::sleep(time::Duration::new(60, 0));
+                msg.next.do_send(FetchSwaps { page_number: 1, next: msg.next.clone() });
+                return Ok(())
+              }
+              println!("Error inserting: {}", err.to_string())
+            },
             Ok(n) => n,
           }
         }
@@ -347,6 +421,6 @@ impl Handler<FetchSwaps> for EventFetchActor {
     println!("Next page..");
     thread::sleep(time::Duration::new(1, 0));
     msg.next.do_send(FetchSwaps { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(true)
+    return Ok(())
   }
 }

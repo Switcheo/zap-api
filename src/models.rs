@@ -1,6 +1,7 @@
-use serde::{Serialize};
-use chrono::{NaiveDateTime};
 use bigdecimal::{BigDecimal};
+use chrono::{NaiveDateTime};
+use diesel::sql_types::{Text, Numeric};
+use serde::{Serialize};
 use uuid::Uuid;
 
 use crate::schema::{swaps, liquidity_changes};
@@ -55,4 +56,12 @@ pub struct NewLiquidityChange<'a> {
   pub initiator_address: &'a str,
   pub token_address: &'a str,
   pub change_amount: &'a BigDecimal,
+}
+
+#[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
+pub struct Liquidity {
+  #[sql_type="Text"]
+  pub pool: String,
+  #[sql_type="Numeric"]
+  pub amount: BigDecimal,
 }

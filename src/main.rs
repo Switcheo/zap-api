@@ -49,7 +49,7 @@ async fn get_swaps(
     let conn = pool.get().expect("couldn't get db connection from pool");
 
     // use web::block to offload blocking Diesel code without blocking server thread
-    let swaps = web::block(move || db::fetch_swaps(&conn, query.per_page, query.page, &filter.pool, &filter.address))
+    let swaps = web::block(move || db::fetch_swaps(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref()))
         .await
         .map_err(|e| {
             eprintln!("{}", e);
@@ -69,7 +69,7 @@ async fn get_liquidity_changes(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity_changes = web::block(move || db::fetch_liquidity_changes(&conn, query.per_page, query.page, &filter.pool, &filter.address))
+  let liquidity_changes = web::block(move || db::fetch_liquidity_changes(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref()))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
@@ -79,15 +79,73 @@ async fn get_liquidity_changes(
   Ok(HttpResponse::Ok().json(liquidity_changes))
 }
 
+
+#[derive(Deserialize)]
+struct LiquidityInfo {
+  timestamp: Option<i64>,
+  address: Option<String>,
+}
+
+/// Get liquidity for all pools.
+#[get("/liquidity")]
+async fn get_liquidity(
+  query: web::Query<LiquidityInfo>,
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  // use web::block to offload blocking Diesel code without blocking server thread
+  let liquidity = web::block(move || db::get_liquidity(&conn, query.timestamp, query.address.as_ref()))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(liquidity))
+}
+
+/// Get time-weighted liquidity for all pools.
+#[get("/weighted_liquidity")]
+async fn get_weighted_liquidity(
+  query: web::Query<LiquidityInfo>,
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  // use web::block to offload blocking Diesel code without blocking server thread
+  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, Some(0), query.timestamp, query.address.as_ref()))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(liquidity))
+}
+
+
 // generate epoch
+// get pools (filtered for the ones to award - epoch 0 all, epoch 1 only xsgd & gzil)
+// for each pool:
+// get liquidity at start_time, * by duration
+// get total time weighted liquidity?
+// get time weighted liquidity grouped by address
+// split reward by pool and time weighted liquidity
+// if epoch 0, get swap_volume and split additional reward by volume
 
 // get epoch
+
+// get current liquidity
+
+// get volume for period
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   std::env::set_var("RUST_LOG", "actix_web=info");
   env_logger::init();
-  dotenv::dotenv().ok();
+  let env_path = std::env::var("ENV_FILE").unwrap_or(String::from("./.env"));
+  dotenv::from_path(env_path).ok();
 
   // set up database connection pool
   let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL env var missing.");
@@ -110,6 +168,8 @@ async fn main() -> std::io::Result<()> {
           .service(hello)
           .service(get_swaps)
           .service(get_liquidity_changes)
+          .service(get_liquidity)
+          .service(get_weighted_liquidity)
   })
   .bind(bind)?
   .run()

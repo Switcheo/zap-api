@@ -41,13 +41,13 @@ cargo run
 
 1. Build new binary for Linux:
 
-    `cargo build --release` on a Linux machine (or host node)
+    `cargo build --release` on a Linux machine (or host node, src can be found in ~/src/zap-api)
 
-    The binary can be found in `./target/release/zap-api`
+    The built binary can be found in `./target/release/zap-api`. Transfer this to `/opt/zap-api-<testnet|mainnet>`
 
 2. Stop old node process:
 
-    `sudo service stop zap-api-<testnet|mainnet>`
+    `sudo systemctl stop zap-api-<testnet|mainnet>`
 
 3. Run migrations:
 
@@ -55,4 +55,4 @@ cargo run
 
 4. Run new node by restarting systemd (make sure env vars are correct in run command / .env file):
 
-    `sudo service start zap-api-<testnet|mainnet>`
+    `sudo systemctl start zap-api-<testnet|mainnet>`
