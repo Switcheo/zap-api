@@ -65,3 +65,23 @@ pub struct Liquidity {
   #[sql_type="Numeric"]
   pub amount: BigDecimal,
 }
+
+#[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
+pub struct SwapVolume {
+  #[sql_type="Text"]
+  pub pool: String,
+
+  // in/out wrt the pool
+  
+  // user swap zil for token
+  #[sql_type="Numeric"]
+  pub in_zil_amount: BigDecimal,
+  #[sql_type="Numeric"]
+  pub out_token_amount: BigDecimal,
+  
+  // user swap token for zil
+  #[sql_type="Numeric"]
+  pub out_zil_amount: BigDecimal,
+  #[sql_type="Numeric"]
+  pub in_token_amount: BigDecimal,
+}

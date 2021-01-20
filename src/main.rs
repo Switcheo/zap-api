@@ -32,6 +32,12 @@ struct PaginationInfo {
 }
 
 #[derive(Deserialize)]
+struct TemporalPeriodInfo {
+  from: Option<i64>,
+  until: Option<i64>,
+}
+
+#[derive(Deserialize)]
 struct AddressInfo {
   pool: Option<String>,
   address: Option<String>,
@@ -140,6 +146,24 @@ async fn get_weighted_liquidity(
 // get epoch data
 
 // get volume for period
+#[get("/volume")]
+async fn get_volume(
+  query: web::Query<TemporalPeriodInfo>,
+  filter: web::Query<AddressInfo>,
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  // use web::block to offload blocking Diesel code without blocking server thread
+  let volumes = web::block(move || db::get_swap_volume(&conn, filter.address.as_ref(), query.from, query.until))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(volumes))
+}
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -172,6 +196,7 @@ async fn main() -> std::io::Result<()> {
           .data(pool.clone())
           .service(hello)
           .service(get_swaps)
+          .service(get_volume)
           .service(get_liquidity_changes)
           .service(get_liquidity)
           .service(get_weighted_liquidity)

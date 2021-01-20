@@ -91,7 +91,42 @@ pub fn get_liquidity(
 }
 
 /// Get volume in Zils.
-/// pub fn get_swap_volume()
+pub fn get_swap_volume(
+  conn: &PgConnection,
+  address: Option<&String>,
+  start_timestamp: Option<i64>,
+  end_timestamp: Option<i64>,
+) -> Result<Vec<models::SwapVolume>, diesel::result::Error> {
+  use crate::schema::swaps::dsl::*;
+
+  let mut query = swaps
+    .group_by(token_address)
+    .select((
+      diesel::dsl::sql::<diesel::sql_types::Text>("token_address AS pool"),
+      // in/out wrt pool
+      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(zil_amount * CAST(is_sending_zil AS integer)) AS in_zil_amount"),
+      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(token_amount * CAST(is_sending_zil AS integer)) AS out_token_amount"),
+      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(zil_amount * CAST(NOT(is_sending_zil) AS integer)) AS out_zil_amount"),
+      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(token_amount * CAST(NOT(is_sending_zil) AS integer)) AS in_token_amount"),
+    ))
+    .into_boxed::<Pg>();
+
+    if let Some(address) = address {
+      query = query.filter(initiator_address.eq(address));
+    }
+  
+    // filter start time, inclusive
+    if let Some(start_timestamp) = start_timestamp {
+      query = query.filter(block_timestamp.ge(chrono::NaiveDateTime::from_timestamp(start_timestamp, 0)))
+    }
+
+    // filter end time, exclusive
+    if let Some(end_timestamp) = end_timestamp {
+      query = query.filter(block_timestamp.lt(chrono::NaiveDateTime::from_timestamp(end_timestamp, 0)))
+    }
+  
+    Ok(query.load::<models::SwapVolume>(conn)?)
+}
 
 /// Get time-weighted liquidity for all pools over a period filtered optionally by address.
 pub fn get_time_weighted_liquidity(
