@@ -14,7 +14,9 @@ use actix::{Actor};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime};
+use constants::{zap_epoch};
 
 mod db;
 mod models;
@@ -22,6 +24,7 @@ mod schema;
 mod worker;
 mod responses;
 mod pagination;
+mod constants;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -143,8 +146,6 @@ async fn get_weighted_liquidity(
 // split reward by pool and time weighted liquidity
 // if epoch 0, get swap_volume and split additional reward by volume
 
-// get epoch data
-
 // get volume for period
 #[get("/volume")]
 async fn get_volume(
@@ -163,6 +164,42 @@ async fn get_volume(
       })?;
 
   Ok(HttpResponse::Ok().json(volumes))
+}
+
+#[derive(Serialize)]
+struct EpochInfoResponse {
+  epoch_start: i64,
+  max_epoch: u32,
+  epoch_period: i64,
+  next_epoch: i64,
+  current_epoch: i64,
+}
+
+// get epoch data
+#[get("/epoch/info")]
+async fn get_epoch_info() -> Result<HttpResponse, Error> {
+  let epoch_start = zap_epoch::EPOCH_START_TIME;
+  let epoch_period = zap_epoch::EPOCH_PERIOD;
+  let max_epoch = zap_epoch::MAX_EPOCH;
+  let current_time = SystemTime::now()
+    .duration_since(SystemTime::UNIX_EPOCH)
+    .expect("invalid server time")
+    .as_secs() as i64;
+
+  let current_epoch = std::cmp::max(0, (current_time - epoch_start) / epoch_period);
+  let next_epoch = if current_time < epoch_start {
+    epoch_start
+  }  else {
+    std::cmp::min(current_epoch + 1, max_epoch.into()) * epoch_period + epoch_start
+  };
+
+  Ok(HttpResponse::Ok().json(EpochInfoResponse {
+    epoch_start,
+    epoch_period,
+    current_epoch,
+    next_epoch,
+    max_epoch,
+  }))
 }
 
 #[actix_web::main]
@@ -195,6 +232,7 @@ async fn main() -> std::io::Result<()> {
       App::new()
           .data(pool.clone())
           .service(hello)
+          .service(get_epoch_info)
           .service(get_swaps)
           .service(get_volume)
           .service(get_liquidity_changes)
