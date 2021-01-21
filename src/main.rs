@@ -11,6 +11,7 @@ extern crate diesel_migrations;
 embed_migrations!();
 
 use actix::{Actor};
+use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
@@ -229,15 +230,16 @@ async fn main() -> std::io::Result<()> {
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   println!("Starting server at: {}", &bind);
   HttpServer::new(move || {
-      App::new()
-          .data(pool.clone())
-          .service(hello)
-          .service(get_epoch_info)
-          .service(get_swaps)
-          .service(get_volume)
-          .service(get_liquidity_changes)
-          .service(get_liquidity)
-          .service(get_weighted_liquidity)
+    App::new()
+      .data(pool.clone())
+      .wrap(Cors::permissive())
+      .service(hello)
+      .service(get_epoch_info)
+      .service(get_swaps)
+      .service(get_volume)
+      .service(get_liquidity_changes)
+      .service(get_liquidity)
+      .service(get_weighted_liquidity)
   })
   .bind(bind)?
   .run()
