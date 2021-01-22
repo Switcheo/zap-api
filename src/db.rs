@@ -90,13 +90,13 @@ pub fn get_liquidity(
   Ok(query.load::<models::Liquidity>(conn)?)
 }
 
-/// Get volume in Zils.
-pub fn get_swap_volume(
+/// Gets the swap volume for all pools over the given period in zil / token amounts.
+pub fn get_volume(
   conn: &PgConnection,
   address: Option<&String>,
   start_timestamp: Option<i64>,
   end_timestamp: Option<i64>,
-) -> Result<Vec<models::SwapVolume>, diesel::result::Error> {
+) -> Result<Vec<models::Volume>, diesel::result::Error> {
   use crate::schema::swaps::dsl::*;
 
   let mut query = swaps
@@ -114,7 +114,7 @@ pub fn get_swap_volume(
     if let Some(address) = address {
       query = query.filter(initiator_address.eq(address));
     }
-  
+
     // filter start time, inclusive
     if let Some(start_timestamp) = start_timestamp {
       query = query.filter(block_timestamp.ge(chrono::NaiveDateTime::from_timestamp(start_timestamp, 0)))
@@ -124,8 +124,8 @@ pub fn get_swap_volume(
     if let Some(end_timestamp) = end_timestamp {
       query = query.filter(block_timestamp.lt(chrono::NaiveDateTime::from_timestamp(end_timestamp, 0)))
     }
-  
-    Ok(query.load::<models::SwapVolume>(conn)?)
+
+    Ok(query.load::<models::Volume>(conn)?)
 }
 
 /// Get time-weighted liquidity for all pools over a period filtered optionally by address.

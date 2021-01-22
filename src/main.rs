@@ -20,12 +20,12 @@ use std::time::{SystemTime};
 use constants::{zap_epoch};
 
 mod db;
+mod constants;
 mod models;
 mod schema;
 mod worker;
 mod responses;
 mod pagination;
-mod constants;
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -36,15 +36,20 @@ struct PaginationInfo {
 }
 
 #[derive(Deserialize)]
-struct TemporalPeriodInfo {
-  from: Option<i64>,
-  until: Option<i64>,
-}
-
-#[derive(Deserialize)]
 struct AddressInfo {
   pool: Option<String>,
   address: Option<String>,
+}
+
+#[derive(Deserialize)]
+struct TimeInfo {
+  timestamp: Option<i64>,
+}
+
+#[derive(Deserialize)]
+struct PeriodInfo {
+  from: Option<i64>,
+  until: Option<i64>,
 }
 
 /// Test endpoint.
@@ -93,23 +98,17 @@ async fn get_liquidity_changes(
   Ok(HttpResponse::Ok().json(liquidity_changes))
 }
 
-
-#[derive(Deserialize)]
-struct LiquidityInfo {
-  timestamp: Option<i64>,
-  address: Option<String>,
-}
-
 /// Get liquidity for all pools.
 #[get("/liquidity")]
 async fn get_liquidity(
-  query: web::Query<LiquidityInfo>,
+  query: web::Query<TimeInfo>,
+  filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_liquidity(&conn, query.timestamp, query.address.as_ref()))
+  let liquidity = web::block(move || db::get_liquidity(&conn, query.timestamp, filter.address.as_ref()))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
@@ -122,13 +121,14 @@ async fn get_liquidity(
 /// Get time-weighted liquidity for all pools.
 #[get("/weighted_liquidity")]
 async fn get_weighted_liquidity(
-  query: web::Query<LiquidityInfo>,
+  query: web::Query<TimeInfo>,
+  filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, Some(0), query.timestamp, query.address.as_ref()))
+  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, Some(0), query.timestamp, filter.address.as_ref()))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
@@ -150,14 +150,13 @@ async fn get_weighted_liquidity(
 // get volume for period
 #[get("/volume")]
 async fn get_volume(
-  query: web::Query<TemporalPeriodInfo>,
+  query: web::Query<PeriodInfo>,
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  // use web::block to offload blocking Diesel code without blocking server thread
-  let volumes = web::block(move || db::get_swap_volume(&conn, filter.address.as_ref(), query.from, query.until))
+  let volumes = web::block(move || db::get_volume(&conn, filter.address.as_ref(), query.from, query.until))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
