@@ -67,6 +67,18 @@ pub struct Liquidity {
 }
 
 #[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
+pub struct LiquidityFromProvider {
+  #[sql_type="Text"]
+  pub pool: String,
+  #[sql_type="Text"]
+  pub address: String,
+  #[sql_type="Numeric"]
+  pub amount: BigDecimal,
+}
+
+pub type VolumeForUser = LiquidityFromProvider;
+
+#[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
 pub struct Volume {
   #[sql_type="Text"]
   pub pool: String,

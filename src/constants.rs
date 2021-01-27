@@ -1,10 +1,12 @@
 
 use std::{fmt};
+use std::collections::HashMap;
 
-pub mod zap_epoch {
-  pub static EPOCH_START_TIME: i64 = 1612339200;
+pub mod zwap_emission {
+  pub static DISTRIBUTION_START_TIME: i64 = 1612339200;
   pub static EPOCH_PERIOD: i64 = 604800; // one week
-  pub static MAX_EPOCH: u32 = 152;
+  pub static TOTAL_NUMBER_OF_EPOCH: u32 = 152;
+  pub static TOKENS_PER_EPOCH: u32 = 6250;
 }
 
 pub enum Event {
@@ -23,6 +25,7 @@ impl fmt::Display for Event {
   }
 }
 
+#[derive(Clone)]
 pub enum Network {
   MainNet,
   TestNet,
@@ -53,6 +56,15 @@ impl Network {
       Network::TestNet => "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c",
       Network::MainNet => "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00",
     })
+  }
+
+  pub fn incentived_pools(&self) -> HashMap<String, u32> {
+    match *self {
+      Network::TestNet => [
+          (String::from("0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"), 1),
+        ].iter().cloned().collect(),
+      Network::MainNet => HashMap::new(),
+    }
   }
 }
 

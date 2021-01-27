@@ -1,6 +1,9 @@
 
 use diesel::pg::Pg;
 use diesel::prelude::*;
+use diesel::dsl::{sql, exists};
+use diesel::sql_types::{Text, Numeric, Timestamp};
+use chrono::{NaiveDateTime, Utc};
 
 use crate::models;
 use crate::pagination::*;
@@ -63,6 +66,19 @@ pub fn fetch_liquidity_changes(
   )
 }
 
+/// Get all pools by token address.
+pub fn get_pools(
+  conn: &PgConnection,
+) -> Result<Vec<String>, diesel::result::Error> {
+  use crate::schema::liquidity_changes::dsl::*;
+
+  let query = liquidity_changes
+    .select(token_address)
+    .distinct();
+
+  Ok(query.load(conn)?)
+}
+
 /// Get liquidity at a point in time filtered optionally by address.
 pub fn get_liquidity(
   conn: &PgConnection,
@@ -74,8 +90,8 @@ pub fn get_liquidity(
   let mut query = liquidity_changes
     .group_by(token_address)
     .select((
-      diesel::dsl::sql::<diesel::sql_types::Text>("token_address AS pool"),
-      diesel::dsl::sql::<diesel::sql_types::Numeric>("sum(change_amount) AS amount")
+      sql::<Text>("token_address AS pool"),
+      sql::<Numeric>("SUM(change_amount) AS amount")
     ))
     .into_boxed::<Pg>();
 
@@ -84,7 +100,7 @@ pub fn get_liquidity(
   }
 
   if let Some(timestamp) = timestamp {
-    query = query.filter(block_timestamp.le(chrono::NaiveDateTime::from_timestamp(timestamp, 0)))
+    query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(timestamp, 0)))
   }
 
   Ok(query.load::<models::Liquidity>(conn)?)
@@ -102,12 +118,12 @@ pub fn get_volume(
   let mut query = swaps
     .group_by(token_address)
     .select((
-      diesel::dsl::sql::<diesel::sql_types::Text>("token_address AS pool"),
+      sql::<Text>("token_address AS pool"),
       // in/out wrt pool
-      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(zil_amount * CAST(is_sending_zil AS integer)) AS in_zil_amount"),
-      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(token_amount * CAST(is_sending_zil AS integer)) AS out_token_amount"),
-      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(zil_amount * CAST(NOT(is_sending_zil) AS integer)) AS out_zil_amount"),
-      diesel::dsl::sql::<diesel::sql_types::Numeric>("SUM(token_amount * CAST(NOT(is_sending_zil) AS integer)) AS in_token_amount"),
+      sql::<Numeric>("SUM(zil_amount * CAST(is_sending_zil AS integer)) AS in_zil_amount"),
+      sql::<Numeric>("SUM(token_amount * CAST(is_sending_zil AS integer)) AS out_token_amount"),
+      sql::<Numeric>("SUM(zil_amount * CAST(NOT(is_sending_zil) AS integer)) AS out_zil_amount"),
+      sql::<Numeric>("SUM(token_amount * CAST(NOT(is_sending_zil) AS integer)) AS in_token_amount"),
     ))
     .into_boxed::<Pg>();
 
@@ -115,17 +131,48 @@ pub fn get_volume(
       query = query.filter(initiator_address.eq(address));
     }
 
-    // filter start time, inclusive
+    // filter start time, exclusive
     if let Some(start_timestamp) = start_timestamp {
-      query = query.filter(block_timestamp.ge(chrono::NaiveDateTime::from_timestamp(start_timestamp, 0)))
+      query = query.filter(block_timestamp.gt(NaiveDateTime::from_timestamp(start_timestamp, 0)))
     }
 
-    // filter end time, exclusive
+    // filter end time, inclusive
     if let Some(end_timestamp) = end_timestamp {
-      query = query.filter(block_timestamp.lt(chrono::NaiveDateTime::from_timestamp(end_timestamp, 0)))
+      query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(end_timestamp, 0)))
     }
 
     Ok(query.load::<models::Volume>(conn)?)
+}
+
+
+/// Gets the swap volume for all pools over the given period in zil amounts by address.
+pub fn get_volume_by_address(
+  conn: &PgConnection,
+  start_timestamp: Option<i64>,
+  end_timestamp: Option<i64>,
+) -> Result<Vec<models::VolumeForUser>, diesel::result::Error> {
+  use crate::schema::swaps::dsl::*;
+
+  let mut query = swaps
+    .group_by((token_address, initiator_address))
+    .select((
+      sql::<Text>("initiator_address AS address"),
+      sql::<Text>("token_address AS pool"),
+      sql::<Numeric>("zil_amount AS amount"),
+    ))
+    .into_boxed::<Pg>();
+
+    // filter start time, exclusive
+    if let Some(start_timestamp) = start_timestamp {
+      query = query.filter(block_timestamp.gt(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+    }
+
+    // filter end time, inclusive
+    if let Some(end_timestamp) = end_timestamp {
+      query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+    }
+
+    Ok(query.load::<models::VolumeForUser>(conn)?)
 }
 
 /// Get time-weighted liquidity for all pools over a period filtered optionally by address.
@@ -142,58 +189,141 @@ pub fn get_time_weighted_liquidity(
   let noop = String::from("1");
 
   let start_dt = match start_timestamp {
-    Some(start_timestamp) => chrono::NaiveDateTime::from_timestamp(start_timestamp, 0),
-    None => chrono::NaiveDateTime::from_timestamp(0, 0),
+    Some(start_timestamp) => NaiveDateTime::from_timestamp(start_timestamp, 0),
+    None => NaiveDateTime::from_timestamp(0, 0),
   };
 
   let end_dt = match end_timestamp {
-    Some(end_timestamp) => chrono::NaiveDateTime::from_timestamp(end_timestamp, 0),
-    None => chrono::Utc::now().naive_utc(),
+    Some(end_timestamp) => NaiveDateTime::from_timestamp(end_timestamp, 0),
+    None => Utc::now().naive_utc(),
   };
+
+  // local test query
+  // "WITH t AS (
+  //   SELECT
+  //     token_address,
+  //     change_amount AS change,
+  //     block_timestamp AS start_timestamp,
+  //     ROW_NUMBER() OVER w AS row_number,
+  //     LEAD(block_timestamp, 1, NOW()::timestamp) OVER w AS end_timestamp,
+  //     SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+  //   FROM liquidity_changes
+  //   WINDOW w AS (PARTITION BY token_address ORDER BY block_timestamp ASC)
+  // ),
+  // data AS (
+  //   SELECT
+  //     *,
+  //     EXTRACT(EPOCH FROM (end_timestamp - start_timestamp)) / 3600 * current AS weighted_liquidity
+  //   FROM t
+  // )
+  // SELECT
+  //   token_address AS pool,
+  //   CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
+  // FROM data
+  // WHERE (
+  //   current > 0
+  //   AND
+  //   (token_address, row_number) IN (SELECT token_address, MAX(row_number) FROM data GROUP BY token_address)
+  // )
+  // GROUP BY token_address;"
 
   let sql = format!("
     WITH t AS (
-      SELECT change_amount, block_timestamp, token_address, row_number() OVER (PARTITION BY token_address ORDER BY block_timestamp ASC)
-      FROM liquidity_changes
-      WHERE block_timestamp > $1
-      AND block_timestamp <= $2
-      {}
-    ),
-    u AS (
       SELECT
-        t.token_address AS token_address,
-        t.block_timestamp AS end_timestamp,
-        t2.block_timestamp AS start_timestamp,
-        t2.change_amount AS change,
-        t.row_number AS row_number,
-        t2.row_number AS row_number_2,
-        (t.block_timestamp - t2.block_timestamp) AS duration,
-        SUM(t2.change_amount) OVER (PARTITION BY t.token_address ORDER BY t2.row_number ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
-      FROM t
-      JOIN t t2 ON
-        t2.row_number = t.row_number - 1 AND
-        t2.token_address = t.token_address
-      ORDER BY row_number
+        token_address,
+        change_amount AS change,
+        block_timestamp AS start_timestamp,
+        ROW_NUMBER() OVER w AS row_number,
+        LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
+        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+      FROM liquidity_changes
+      WHERE block_timestamp <= $2
+      {}
+      WINDOW w AS (PARTITION BY token_address ORDER BY block_timestamp ASC)
     ),
     data AS (
       SELECT
         *,
-        EXTRACT(EPOCH FROM (end_timestamp - start_timestamp)) / 3600 * current AS weighted_liquidity
-      FROM u
+        EXTRACT(EPOCH FROM (end_timestamp - GREATEST(start_timestamp, $1 + INTERVAL '1 second'))) / 3600 * current AS weighted_liquidity
+      FROM t
     )
     SELECT
       token_address AS pool,
       CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
     FROM data
+    WHERE start_timestamp > $1
+    OR (
+      current > 0
+      AND
+      (token_address, row_number) IN (SELECT token_address, MAX(row_number) FROM data WHERE start_timestamp <= $1 GROUP BY token_address)
+    )
     GROUP BY token_address;
   ", address_fragment);
 
   let query = diesel::sql_query(sql)
-    .bind::<diesel::sql_types::Timestamp, _>(start_dt)
-    .bind::<diesel::sql_types::Timestamp, _>(end_dt)
-    .bind::<diesel::sql_types::Text, _>(address.unwrap_or(&noop));
+    .bind::<Timestamp, _>(start_dt)
+    .bind::<Timestamp, _>(end_dt)
+    .bind::<Text, _>(address.unwrap_or(&noop));
 
   Ok(query.load::<models::Liquidity>(conn)?)
+}
+
+/// Get time-weighted liquidity for all pools over a period grouped by address.
+pub fn get_time_weighted_liquidity_by_address(
+  conn: &PgConnection,
+  start_timestamp: Option<i64>,
+  end_timestamp: Option<i64>,
+) -> Result<Vec<models::LiquidityFromProvider>, diesel::result::Error> {
+  let start_dt = match start_timestamp {
+    Some(start_timestamp) => NaiveDateTime::from_timestamp(start_timestamp, 0),
+    None => NaiveDateTime::from_timestamp(0, 0),
+  };
+
+  let end_dt = match end_timestamp {
+    Some(end_timestamp) => NaiveDateTime::from_timestamp(end_timestamp, 0),
+    None => Utc::now().naive_utc(),
+  };
+
+  let sql = "
+    WITH t AS (
+      SELECT
+        token_address,
+        initiator_address,
+        change_amount AS change,
+        block_timestamp AS start_timestamp,
+        ROW_NUMBER() OVER w AS row_number,
+        LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
+        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+      FROM liquidity_changes
+      WHERE block_timestamp <= $2
+      WINDOW w AS (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC)
+    ),
+    data AS (
+      SELECT
+        *,
+        EXTRACT(EPOCH FROM (end_timestamp - GREATEST(start_timestamp, $1 + INTERVAL '1 second'))) / 3600 * current AS weighted_liquidity
+      FROM t
+    )
+    SELECT
+      token_address AS pool,
+      initiator_address AS address,
+      CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
+    FROM data
+    WHERE start_timestamp > $1
+    OR (
+      current > 0
+      AND
+      (token_address, initiator_address, row_number) IN (SELECT token_address, initiator_address, MAX(row_number)
+        FROM data WHERE start_timestamp <= $1 GROUP BY (token_address, initiator_address))
+    )
+    GROUP BY (token_address, initiator_address);
+  ";
+
+  let query = diesel::sql_query(sql)
+    .bind::<Timestamp, _>(start_dt)
+    .bind::<Timestamp, _>(end_dt);
+
+  Ok(query.load::<models::LiquidityFromProvider>(conn)?)
 }
 
 /// Get the liquidity over time of all pools
@@ -270,7 +400,7 @@ pub fn swap_exists(
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::swaps::dsl::*;
 
-  Ok(diesel::select(diesel::dsl::exists(swaps.filter(transaction_hash.eq(hash))))
+  Ok(diesel::select(exists(swaps.filter(transaction_hash.eq(hash))))
     .get_result(conn)?)
 }
 
@@ -279,6 +409,6 @@ pub fn liquidity_change_exists(
   hash: String,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
-  Ok(diesel::select(diesel::dsl::exists(liquidity_changes.filter(transaction_hash.eq(hash))))
+  Ok(diesel::select(exists(liquidity_changes.filter(transaction_hash.eq(hash))))
     .get_result(conn)?)
 }
