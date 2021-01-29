@@ -76,7 +76,7 @@ impl Network {
   pub fn developer_address(&self) -> String {
     String::from(match *self {
       Network::TestNet => "zil1ua2dhnlykmxtnuaudmqd3uju6altn6lq0lqvl9",
-      Network::MainNet => "", // TODO
+      Network::MainNet => "zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6",
     })
   }
 }

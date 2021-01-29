@@ -163,8 +163,8 @@ fn hash(address: &Vec::<u8>, amount: &BigDecimal) -> Vec<u8> {
 
   // debug: hash the concatted value
   let final_hash = digest::digest(&digest::SHA256, &value_to_hash);
-  println!("value to hash: {}", encode(value_to_hash.to_vec()));
-  println!("final hash: {}", encode(final_hash.as_ref().to_vec()));
+  // println!("value to hash: {}", encode(value_to_hash.to_vec()));
+  // println!("final hash: {}", encode(final_hash.as_ref().to_vec()));
 
   final_hash.as_ref().to_vec()
 }
@@ -197,6 +197,7 @@ fn build_parents(mut input: Vec<MerkleTree>) -> MerkleTree {
             // println!("Joining:\n{:?}\n{:?}", encode(c1.data().1.clone()), encode(c2.data().1.clone()));
             let concat = [c1.data().1.clone(), c2.data().1.clone()].concat();
             let hash = digest::digest(&digest::SHA256, &concat);
+            // println!("Hash:\n{:?}", encode(hash.as_ref().to_vec()));
             let mut parent = MerkleTree::new((None, hash.as_ref().to_vec()));
             parent.push_back(c1);
             parent.push_back(c2);
