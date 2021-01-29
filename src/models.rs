@@ -97,3 +97,12 @@ pub struct Volume {
   #[sql_type="Numeric"]
   pub in_token_amount: BigDecimal,
 }
+
+#[derive(Queryable, Serialize)]
+struct Distribution {
+  epoch_number: i32,
+  address_bech32: String,
+  address_hex: String,
+  amount: BigDecimal,
+  proof: String,
+}

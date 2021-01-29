@@ -13,13 +13,14 @@ embed_migrations!();
 use actix::{Actor};
 use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
-use bigdecimal::{BigDecimal};
+use bech32::{decode, FromBase32};
+use bigdecimal::{BigDecimal, Signed};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
-use serde::{Deserialize, Serialize};
-use std::time::{SystemTime};
+use hex::{encode};
+use serde::{Deserialize};
 use std::collections::HashMap;
-use constants::{zwap_emission};
+use std::str;
 
 mod db;
 mod constants;
@@ -28,9 +29,11 @@ mod schema;
 mod worker;
 mod responses;
 mod pagination;
+mod distribution;
 mod utils;
 
 use crate::constants::{Network};
+use crate::distribution::{Distribution, EpochInfo};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -162,7 +165,13 @@ async fn get_weighted_liquidity(
   Ok(HttpResponse::Ok().json(liquidity))
 }
 
-// generate epoch
+/// Get distribution epoch information.
+#[get("/epoch/info")]
+async fn get_epoch_info() -> Result<HttpResponse, Error> {
+  Ok(HttpResponse::Ok().json(EpochInfo::default()))
+}
+
+/// Generate data for the an ended epoch and save it to db.
 // steps:
 // get pools (filtered for the ones to award - epoch 0 all, epoch 1 only xsgd & gzil)
 // for each pool:
@@ -176,47 +185,63 @@ async fn generate_epoch(
   network: web::Data<Network>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
-  let epoch_info = epoch_info();
+  let epoch_info = EpochInfo::default();
+  let start = Some(epoch_info.current_epoch_start());
+  let end = Some(epoch_info.next_epoch_start());
+
+  // TODO check if already generated.
 
   let result = web::block(move || {
-    // get weights
-    let pools = if epoch_info.current_epoch == 0 {
-      db::get_pools(&conn)?
-        .into_iter().map(|p| {
-          (p, 1 as u32)
-        }).collect()
-    } else {
-      network.incentived_pools()
-    };
-    let total_weight: u32 = pools.values().into_iter().sum();
-
     // get pool TWAL and individual TWAL
     struct PoolDistribution {
       tokens: BigDecimal,
       weighted_liquidity: BigDecimal,
     }
-    let totals: HashMap<String, PoolDistribution> = db::get_time_weighted_liquidity(&conn, None, None, None)?.into_iter().map(|i| {
-      let weight: u32 = *pools.get(&i.pool).unwrap();
-      (i.pool,
-        PoolDistribution{
-          tokens: utils::round(BigDecimal::from(epoch_info.tokens_per_epoch) * BigDecimal::from(10u64.pow(12)) * BigDecimal::from(total_weight) / BigDecimal::from(weight), 0),
-          weighted_liquidity: i.amount
-        }
-      )
-    }).collect();
-    let breakdowns = db::get_time_weighted_liquidity_by_address(&conn, None, None)?;
-
+    let pt = epoch_info.tokens_for_liquidity_providers();
+    let distribution: HashMap<String, PoolDistribution> =
+      if epoch_info.is_initial() {
+        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+        db::get_pools(&conn)?.into_iter().map(|pool| {
+          (pool,
+            PoolDistribution{ // share distribution fully
+              tokens: utils::round_down(pt.clone(), 0),
+              weighted_liquidity: total_liquidity.clone(),
+            }
+          )
+        }).collect()
+      } else {
+        let pool_weights = network.incentived_pools();
+        let total_weight: u32 = pool_weights.values().into_iter().sum();
+        db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| {
+          let weight: u32 = *pool_weights.get(&i.pool).unwrap();
+          (i.pool,
+            PoolDistribution{ // each pool has a weighted allocation
+              tokens: utils::round_down(pt.clone() * BigDecimal::from(total_weight) / BigDecimal::from(weight), 0),
+              weighted_liquidity: i.amount,
+            }
+          )
+        }).collect()
+      };
     // for each individual TWAL, calculate the tokens
+    let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
     let mut accumulator: HashMap<String, BigDecimal> = HashMap::new();
-    for b in breakdowns.into_iter() {
-      let pool = totals.get(&b.pool).unwrap();
-      let share = utils::round(b.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
-      let current = accumulator.entry(b.address).or_insert(BigDecimal::default());
+    for l in user_liquidity.into_iter() {
+      let pool = distribution.get(&l.pool).unwrap();
+      let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+      let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
       *current += share
     }
-
-    // if 0 epoch, add volumes
-    // TODO!
+    // if initial epoch, add distr for swap volumes
+    let tt = epoch_info.tokens_for_traders();
+    if tt.is_positive() {
+      let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?.into_iter().map(|v| v.in_zil_amount + v.out_zil_amount).sum();
+      let user_volume = db::get_volume_by_address(&conn, start, end)?;
+      for v in user_volume.into_iter() {
+        let share = utils::round_down(tt.clone() * v.amount / total_volume.clone(), 0);
+        let current = accumulator.entry(v.address).or_insert(BigDecimal::default());
+        *current += share
+      }
+    }
 
     Ok::<HashMap<String, BigDecimal>, diesel::result::Error>(accumulator)
   }).await
@@ -224,52 +249,26 @@ async fn generate_epoch(
       eprintln!("{}", e);
       HttpResponse::InternalServerError().finish()
     })?;
-
-  Ok(HttpResponse::Ok().json(result))
-}
-
-#[derive(Serialize)]
-struct EpochInfo {
-  epoch_period: i64,
-  tokens_per_epoch: u32,
-  first_epoch_start: i64,
-  next_epoch_start: i64,
-  total_epoch: u32,
-  current_epoch: i64,
-}
-
-/// Get distribution epoch information.
-#[get("/epoch/info")]
-async fn get_epoch_info() -> Result<HttpResponse, Error> {
-  Ok(HttpResponse::Ok().json(epoch_info()))
-}
-
-fn epoch_info() -> EpochInfo {
-  let first_epoch_start = zwap_emission::DISTRIBUTION_START_TIME;
-  let epoch_period = zwap_emission::EPOCH_PERIOD;
-  let total_epoch = zwap_emission::TOTAL_NUMBER_OF_EPOCH;
-  let tokens_per_epoch = zwap_emission::TOKENS_PER_EPOCH;
-  let current_time = SystemTime::now()
-    .duration_since(SystemTime::UNIX_EPOCH)
-    .expect("invalid server time")
-    .as_secs() as i64;
-
-  let current_epoch = std::cmp::max(0, (current_time - first_epoch_start) / epoch_period);
-  let next_epoch_start =
-    if current_time < first_epoch_start {
-      first_epoch_start
-    } else {
-      std::cmp::min(current_epoch + 1, total_epoch.into()) * epoch_period + first_epoch_start
-    };
-
-  EpochInfo {
-    epoch_period,
-    tokens_per_epoch,
-    first_epoch_start,
-    next_epoch_start,
-    total_epoch,
-    current_epoch,
+  let mut leaves: Vec<Distribution> = vec![];
+  for (k, v) in result.into_iter() {
+    let (_hrp, data) = decode(k.as_str()).expect("Could not decode bech32 string!");
+    let bytes = Vec::<u8>::from_base32(&data).unwrap();
+    let d = Distribution::new(bytes, v);
+    leaves.push(d);
   }
+  let tree = distribution::construct_merkle_tree(leaves);
+  let proofs = distribution::get_proofs(tree.clone());
+  for p in proofs.into_iter() {
+    println!("Proof: {}", p.1);
+  }
+
+  Ok(HttpResponse::Ok().json(encode(tree.root().data().clone().1)))
+}
+
+/// Get distribution epoch data.
+#[get("/epoch/data/:epoch_number")]
+async fn get_epoch_data() -> Result<HttpResponse, Error> {
+  Ok(HttpResponse::Ok().json(EpochInfo::default()))
 }
 
 #[actix_web::main]

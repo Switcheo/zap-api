@@ -131,14 +131,14 @@ pub fn get_volume(
       query = query.filter(initiator_address.eq(address));
     }
 
-    // filter start time, exclusive
+    // filter start time, inclusive
     if let Some(start_timestamp) = start_timestamp {
-      query = query.filter(block_timestamp.gt(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+      query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
     }
 
-    // filter end time, inclusive
+    // filter end time, exclusive
     if let Some(end_timestamp) = end_timestamp {
-      query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+      query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
     }
 
     Ok(query.load::<models::Volume>(conn)?)
@@ -158,18 +158,18 @@ pub fn get_volume_by_address(
     .select((
       sql::<Text>("initiator_address AS address"),
       sql::<Text>("token_address AS pool"),
-      sql::<Numeric>("zil_amount AS amount"),
+      sql::<Numeric>("SUM(zil_amount) AS amount"),
     ))
     .into_boxed::<Pg>();
 
-    // filter start time, exclusive
+    // filter start time, inclusive
     if let Some(start_timestamp) = start_timestamp {
-      query = query.filter(block_timestamp.gt(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+      query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
     }
 
-    // filter end time, inclusive
+    // filter end time, exclusive
     if let Some(end_timestamp) = end_timestamp {
-      query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+      query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
     }
 
     Ok(query.load::<models::VolumeForUser>(conn)?)
@@ -237,7 +237,7 @@ pub fn get_time_weighted_liquidity(
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
         SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
-      WHERE block_timestamp <= $2
+      WHERE block_timestamp < $2
       {}
       WINDOW w AS (PARTITION BY token_address ORDER BY block_timestamp ASC)
     ),
@@ -251,11 +251,11 @@ pub fn get_time_weighted_liquidity(
       token_address AS pool,
       CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
     FROM data
-    WHERE start_timestamp > $1
+    WHERE start_timestamp >= $1
     OR (
       current > 0
       AND
-      (token_address, row_number) IN (SELECT token_address, MAX(row_number) FROM data WHERE start_timestamp <= $1 GROUP BY token_address)
+      (token_address, row_number) IN (SELECT token_address, MAX(row_number) FROM data WHERE start_timestamp < $1 GROUP BY token_address)
     )
     GROUP BY token_address;
   ", address_fragment);
@@ -295,7 +295,7 @@ pub fn get_time_weighted_liquidity_by_address(
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
         SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
-      WHERE block_timestamp <= $2
+      WHERE block_timestamp < $2
       WINDOW w AS (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC)
     ),
     data AS (
@@ -309,12 +309,12 @@ pub fn get_time_weighted_liquidity_by_address(
       initiator_address AS address,
       CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
     FROM data
-    WHERE start_timestamp > $1
+    WHERE start_timestamp >= $1
     OR (
       current > 0
       AND
       (token_address, initiator_address, row_number) IN (SELECT token_address, initiator_address, MAX(row_number)
-        FROM data WHERE start_timestamp <= $1 GROUP BY (token_address, initiator_address))
+        FROM data WHERE start_timestamp < $1 GROUP BY (token_address, initiator_address))
     )
     GROUP BY (token_address, initiator_address);
   ";

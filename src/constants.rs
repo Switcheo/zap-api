@@ -61,10 +61,19 @@ impl Network {
   pub fn incentived_pools(&self) -> HashMap<String, u32> {
     match *self {
       Network::TestNet => [
-          (String::from("0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"), 1),
+          (String::from(""), 1),
         ].iter().cloned().collect(),
-      Network::MainNet => HashMap::new(),
+      Network::MainNet => [
+        (String::from(""), 1),
+      ].iter().cloned().collect(),
     }
+  }
+
+  pub fn developer_address(&self) -> String {
+    String::from(match *self {
+      Network::TestNet => "",
+      Network::MainNet => "",
+    })
   }
 }
 
