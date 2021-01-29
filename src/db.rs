@@ -8,7 +8,7 @@ use chrono::{NaiveDateTime, Utc};
 use crate::models;
 use crate::pagination::*;
 
-/// Run query using Diesel to find user by uid and return it.
+/// Fetch swaps by page.
 pub fn fetch_swaps(
   conn: &PgConnection,
   per_page: Option<i64>,
@@ -38,7 +38,7 @@ pub fn fetch_swaps(
     .load_and_count_pages::<models::Swap>(conn)?)
 }
 
-/// Run query using Diesel to find user by uid and return it.
+/// Fetch liquidity changes by page.
 pub fn fetch_liquidity_changes(
   conn: &PgConnection,
   per_page: Option<i64>,
@@ -63,6 +63,30 @@ pub fn fetch_liquidity_changes(
     .paginate(page)
     .per_page(per_page)
     .load_and_count_pages::<models::LiquidityChange>(conn)?
+  )
+}
+
+/// Fetch distributions by epoch / address.
+pub fn fetch_distributions(
+  conn: &PgConnection,
+  epoch: Option<i32>,
+  address: Option<&String>,
+) -> Result<Vec<models::Distribution>, diesel::result::Error> {
+  use crate::schema::distributions::dsl::*;
+
+  let mut query = distributions.into_boxed::<Pg>();
+
+  if let Some(epoch) = epoch {
+    query = query.filter(epoch_number.eq(epoch));
+  }
+
+  if let Some(address) = address {
+    query = query.filter(address_bech32.eq(address));
+  }
+
+  Ok(query
+    .order(address_bech32.asc())
+    .load::<models::Distribution>(conn)?
   )
 }
 
@@ -394,6 +418,20 @@ pub fn insert_liquidity_change(
   Ok(())
 }
 
+/// Inserts multiple distributions into the db.
+pub fn insert_distributions(
+  new_distribution: Vec<models::NewDistribution>,
+  conn: &PgConnection,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::distributions::dsl::*;
+
+  diesel::insert_into(distributions)
+    .values(&new_distribution)
+    .execute(conn)?;
+
+  Ok(())
+}
+
 pub fn swap_exists(
   conn: &PgConnection,
   hash: String,
@@ -410,5 +448,15 @@ pub fn liquidity_change_exists(
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
   Ok(diesel::select(exists(liquidity_changes.filter(transaction_hash.eq(hash))))
+    .get_result(conn)?)
+}
+
+pub fn epoch_exists(
+  conn: &PgConnection,
+  epoch: i32,
+) -> Result<bool, diesel::result::Error> {
+  use crate::schema::distributions::dsl::*;
+
+  Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch))))
     .get_result(conn)?)
 }

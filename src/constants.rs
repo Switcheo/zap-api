@@ -61,18 +61,22 @@ impl Network {
   pub fn incentived_pools(&self) -> HashMap<String, u32> {
     match *self {
       Network::TestNet => [
-          (String::from(""), 1),
-        ].iter().cloned().collect(),
+        (String::from("zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5"), 3), // gZIL
+        (String::from("zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv"), 2), // XSGD
+        (String::from("zil1d6yfgycu9ythxy037hkt3phc3jf7h6rfzuft0s"), 5), // SWTH
+      ].iter().cloned().collect(),
       Network::MainNet => [
-        (String::from(""), 1),
+        (String::from("zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e"), 3), // gZIL
+        (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 2), // XSGD
+        // TODO: (String::from(""), 5), // ZWAP
       ].iter().cloned().collect(),
     }
   }
 
   pub fn developer_address(&self) -> String {
     String::from(match *self {
-      Network::TestNet => "",
-      Network::MainNet => "",
+      Network::TestNet => "zil1ua2dhnlykmxtnuaudmqd3uju6altn6lq0lqvl9",
+      Network::MainNet => "", // TODO
     })
   }
 }

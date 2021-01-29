@@ -1,4 +1,15 @@
 table! {
+    distributions (id) {
+        id -> Uuid,
+        epoch_number -> Int4,
+        address_bech32 -> Varchar,
+        address_hex -> Varchar,
+        amount -> Numeric,
+        proof -> Varchar,
+    }
+}
+
+table! {
     liquidity_changes (id) {
         id -> Uuid,
         transaction_hash -> Varchar,
@@ -27,6 +38,7 @@ table! {
 }
 
 allow_tables_to_appear_in_same_query!(
+    distributions,
     liquidity_changes,
     swaps,
 );

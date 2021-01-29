@@ -13,7 +13,6 @@ embed_migrations!();
 use actix::{Actor};
 use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
-use bech32::{decode, FromBase32};
 use bigdecimal::{BigDecimal, Signed};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
@@ -189,9 +188,15 @@ async fn generate_epoch(
   let start = Some(epoch_info.current_epoch_start());
   let end = Some(epoch_info.next_epoch_start());
 
-  // TODO check if already generated.
+  // TODO: make sure epoch is over.
+
+  let epoch_number = epoch_info.epoch_number() as i32;
 
   let result = web::block(move || {
+    if db::epoch_exists(&conn, epoch_number)? {
+      return Ok(String::from("Epoch already generated!"))
+    }
+
     // get pool TWAL and individual TWAL
     struct PoolDistribution {
       tokens: BigDecimal,
@@ -242,33 +247,54 @@ async fn generate_epoch(
         *current += share
       }
     }
+    // add developer share
+    let dt = epoch_info.tokens_for_developers();
+    if dt.is_positive() {
+      accumulator.insert(network.developer_address(), dt);
+    }
 
-    Ok::<HashMap<String, BigDecimal>, diesel::result::Error>(accumulator)
+    let leaves = Distribution::from(accumulator);
+    let tree = distribution::construct_merkle_tree(leaves);
+    let proofs = distribution::get_proofs(tree.clone());
+    let records = proofs.into_iter().map(|(d, p)| {
+      models::NewDistribution{
+        epoch_number,
+        address_bech32: d.address(),
+        address_hex: encode(d.address_bytes()),
+        amount: d.amount(),
+        proof: p,
+      }
+    }).collect();
+
+    db::insert_distributions(records, &conn).expect("Failed to insert distributions!");
+
+    Ok::<String, diesel::result::Error>(encode(tree.root().data().clone().1))
   }).await
     .map_err(|e| {
       eprintln!("{}", e);
       HttpResponse::InternalServerError().finish()
     })?;
-  let mut leaves: Vec<Distribution> = vec![];
-  for (k, v) in result.into_iter() {
-    let (_hrp, data) = decode(k.as_str()).expect("Could not decode bech32 string!");
-    let bytes = Vec::<u8>::from_base32(&data).unwrap();
-    let d = Distribution::new(bytes, v);
-    leaves.push(d);
-  }
-  let tree = distribution::construct_merkle_tree(leaves);
-  let proofs = distribution::get_proofs(tree.clone());
-  for p in proofs.into_iter() {
-    println!("Proof: {}", p.1);
-  }
 
-  Ok(HttpResponse::Ok().json(encode(tree.root().data().clone().1)))
+  Ok(HttpResponse::Ok().json(result))
 }
 
-/// Get distribution epoch data.
-#[get("/epoch/data/:epoch_number")]
-async fn get_epoch_data() -> Result<HttpResponse, Error> {
-  Ok(HttpResponse::Ok().json(EpochInfo::default()))
+/// Get epoch distribution data.
+#[get("/epoch/data/{epoch_number}")]
+async fn get_epoch_data(
+  pool: web::Data<DbPool>,
+  filter: web::Query<AddressInfo>,
+  web::Path(epoch_number): web::Path<i32>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let distributions = web::block(move || db::fetch_distributions(&conn, Some(epoch_number), filter.address.as_ref()))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(distributions))
 }
 
 #[actix_web::main]
@@ -311,8 +337,9 @@ async fn main() -> std::io::Result<()> {
       .data(network.clone())
       .wrap(Cors::permissive())
       .service(hello)
-      .service(get_epoch_info)
       .service(generate_epoch)
+      .service(get_epoch_info)
+      .service(get_epoch_data)
       .service(get_swaps)
       .service(get_volume)
       .service(get_liquidity_changes)

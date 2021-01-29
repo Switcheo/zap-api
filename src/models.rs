@@ -4,7 +4,7 @@ use diesel::sql_types::{Text, Numeric};
 use serde::{Serialize};
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes};
+use crate::schema::{swaps, liquidity_changes, distributions};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -98,11 +98,22 @@ pub struct Volume {
   pub in_token_amount: BigDecimal,
 }
 
-#[derive(Queryable, Serialize)]
-struct Distribution {
-  epoch_number: i32,
-  address_bech32: String,
-  address_hex: String,
-  amount: BigDecimal,
-  proof: String,
+#[derive(Debug, Identifiable, Queryable, Serialize)]
+pub struct Distribution {
+  pub id: Uuid,
+  pub epoch_number: i32,
+  pub address_bech32: String,
+  pub address_hex: String,
+  pub amount: BigDecimal,
+  pub proof: String,
+}
+
+#[derive(Debug, Insertable)]
+#[table_name="distributions"]
+pub struct NewDistribution {
+  pub epoch_number: i32,
+  pub address_bech32: String,
+  pub address_hex: String,
+  pub amount: BigDecimal,
+  pub proof: String,
 }

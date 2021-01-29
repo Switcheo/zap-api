@@ -1,9 +1,12 @@
-use ring::{digest};
-use trees::{Tree, TreeWalk, Node, walk::Visit};
+
+use bech32::{decode, FromBase32};
 use bigdecimal::{BigDecimal};
 use hex::{encode};
+use ring::{digest};
 use serde::{Serialize};
+use std::collections::HashMap;
 use std::time::{SystemTime};
+use trees::{Tree, TreeWalk, Node, walk::Visit};
 
 use crate::constants::{zwap_emission};
 
@@ -56,6 +59,10 @@ impl EpochInfo {
     self.current_epoch == 0
   }
 
+  pub fn epoch_number(&self) -> i64 {
+    self.current_epoch
+  }
+
   pub fn current_epoch_start(&self) -> i64 {
     if self.is_initial() {
       0
@@ -99,18 +106,34 @@ impl EpochInfo {
 
 #[derive(Serialize, Clone)]
 pub struct Distribution {
+  address_human: String,
   address: Vec::<u8>,
   amount: BigDecimal,
   hash: Vec::<u8>,
 }
 
 impl Distribution {
-  pub fn new(address: Vec::<u8>, amount: BigDecimal) -> Distribution {
-    let hash = hash(&address, &amount);
-    Distribution{address, amount, hash}
+  pub fn new(address: String, amount: BigDecimal) -> Distribution {
+    let (_hrp, data) = decode(address.as_str()).expect("Could not decode bech32 string!");
+    let bytes = Vec::<u8>::from_base32(&data).unwrap();
+    let hash = hash(&bytes, &amount);
+    Distribution{address_human: address, address: bytes, amount, hash}
   }
 
-  pub fn address(&self) -> Vec::<u8> {
+  pub fn from(map: HashMap<String, BigDecimal>) -> Vec<Distribution> {
+    let mut arr: Vec<Distribution> = vec![];
+    for (k, v) in map.into_iter() {
+      let d = Distribution::new(k, v);
+      arr.push(d);
+    }
+    arr
+  }
+
+  pub fn address(&self) -> String {
+    self.address_human.clone()
+  }
+
+  pub fn address_bytes(&self) -> Vec<u8> {
     self.address.clone()
   }
 
@@ -159,7 +182,7 @@ pub fn construct_merkle_tree(data: Vec<Distribution>) -> MerkleTree {
   build_parents(leaves)
 }
 
-pub fn build_parents(mut input: Vec<MerkleTree>) -> MerkleTree {
+fn build_parents(mut input: Vec<MerkleTree>) -> MerkleTree {
   // println!("Build parents:");
   input.sort_by_key(|c| c.data().1.clone()); // sort by hash
   let mut children = std::collections::VecDeque::from(input);
@@ -209,7 +232,6 @@ pub fn get_proofs(tree: MerkleTree) -> Vec<(Distribution, String)> {
 }
 
 fn get_proof(leaf: &Node<Data>) -> String {
-  println!("Getting proof:");
   let mut res = String::new();
   let mut needle = leaf;
   // push node hash
@@ -221,14 +243,13 @@ fn get_proof(leaf: &Node<Data>) -> String {
       if sibling.data().1 == needle.data().1 {
         sibling = parent.back().unwrap();
       }
-      println!("Found sibling!");
       // push sibling hash
       res.push_str(" ");
       res.push_str(encode(sibling.data().1.clone()).as_str());
-      res.push_str(" ");
       needle = parent
     } else { // no parent, we are at the root
       // push root hash
+      res.push_str(" ");
       res.push_str(encode(needle.data().1.clone()).as_str());
       break
     }
