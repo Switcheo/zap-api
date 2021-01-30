@@ -152,10 +152,14 @@ fn hash(address: &Vec::<u8>, amount: &BigDecimal) -> Vec<u8> {
   if exp != 0 {
     panic!("Non-integer distribution amount received!");
   }
-  let (_sign, amount_bytes) = big.to_bytes_be();
+  let (_sign, bytes) = big.to_bytes_be();
+  let zeroes = vec![0; 16 - bytes.len()];
+  let amount_bytes = [zeroes, bytes].concat();
+  // println!("amount_bytes: {:?}", amount_bytes);
 
   // hash the amount bytes
   let digest = digest::digest(&digest::SHA256, &amount_bytes);
+  // println!("digest: {:?}", digest);
   let amount_hash = digest.as_ref();
 
   // concat 20 address bytes to the 32 bytes amount hash
