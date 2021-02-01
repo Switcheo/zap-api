@@ -292,6 +292,30 @@ async fn generate_epoch(
   Ok(HttpResponse::Ok().json(result))
 }
 
+/// Gets distribution pool weights.
+#[get("/distribution/pool_weights")]
+async fn get_pool_weights(
+    pool: web::Data<DbPool>,
+    network: web::Data<Network>,
+) -> Result<HttpResponse, Error> {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+
+    // use web::block to offload blocking Diesel code without blocking server thread
+    let pools = web::block(move || db::get_pools(&conn))
+        .await
+        .map_err(|e| {
+            eprintln!("{}", e);
+            HttpResponse::InternalServerError().finish()
+        })?;
+
+    let mut result: HashMap<String, u32> = pools.into_iter().map(|x| (x, 0)).collect();
+    for (key, value) in network.incentived_pools().into_iter() {
+      result.insert(key, value);
+    }
+
+    Ok(HttpResponse::Ok().json(result))
+}
+
 /// Get distribution data for the given address
 // steps:
 // get pools (filtered for the ones to award - epoch 0 all, epoch 1 only xsgd & gzil)
@@ -309,17 +333,10 @@ async fn get_current_distribution(
   let conn = pool.get().expect("couldn't get db connection from pool");
   let epoch_info = EpochInfo::default();
   let start = Some(epoch_info.current_epoch_start());
-  let end = Some(epoch_info.next_epoch_start());
+  let end = Some(epoch_info.current_epoch_end());
 
   let result = web::block(move || {
-    if epoch_info.is_initial() {
-      // return initial data
-      let d = db::get_distributions_by_address(&conn, &address)?.into_iter().find(|d| d.epoch_number == 0);
-      if let Some(distribution) = d {
-        return Ok(distribution.amount.to_string());
-      }
-      return Ok(String::from("0"));
-    }
+    let mut accumulator: HashMap<String, BigDecimal> = HashMap::new();
 
     // get pool TWAL and individual TWAL
     struct PoolDistribution {
@@ -327,37 +344,51 @@ async fn get_current_distribution(
       weighted_liquidity: BigDecimal,
     }
     let pt = epoch_info.tokens_for_liquidity_providers();
-    let pool_weights = network.incentived_pools();
-    let total_weight: u32 = pool_weights.values().into_iter().sum();
-    let distribution: HashMap<String, PoolDistribution> = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
-      if let Some(weight) = pool_weights.get(&i.pool) {
-        Some((i.pool,
-          PoolDistribution{ // each pool has a weighted allocation
-            tokens: utils::round_down(pt.clone() * BigDecimal::from(total_weight) / BigDecimal::from(*weight), 0),
-            weighted_liquidity: i.amount,
-          }
-        ))
+    let distribution: HashMap<String, PoolDistribution> =
+      if epoch_info.is_initial() {
+        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+        db::get_pools(&conn)?.into_iter().map(|pool| {
+          (pool,
+            PoolDistribution{ // share distribution fully
+              tokens: utils::round_down(pt.clone(), 0),
+              weighted_liquidity: total_liquidity.clone(),
+            }
+          )
+        }).collect()
       } else {
-        None
-      }
-    }).collect();
+        let pool_weights = network.incentived_pools();
+        let total_weight: u32 = pool_weights.values().into_iter().sum();
+        db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
+          if let Some(weight) = pool_weights.get(&i.pool) {
+            Some((i.pool,
+              PoolDistribution{ // each pool has a weighted allocation
+                tokens: utils::round_down(pt.clone() * BigDecimal::from(total_weight) / BigDecimal::from(*weight), 0),
+                weighted_liquidity: i.amount,
+              }
+            ))
+          } else {
+            None
+          }
+        }).collect()
+      };
 
     // for each individual TWAL, calculate the tokens
     let user_liquidity = db::get_time_weighted_liquidity(&conn, start, end, Some(&address))?;
-    let mut current = BigDecimal::default();
     for l in user_liquidity.into_iter() {
       if let Some(pool) = distribution.get(&l.pool) {
         let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
-        current += share
+        let current = accumulator.entry(l.pool).or_insert(BigDecimal::default());
+        *current += share
       }
     }
 
     // add developer share
     if network.developer_address() == address {
-      current += epoch_info.tokens_for_developers();
+      let current = accumulator.entry("developer".to_string()).or_insert(BigDecimal::default());
+      *current += epoch_info.tokens_for_developers()
     }
 
-    Ok::<String, diesel::result::Error>(current.to_string())
+    Ok::<HashMap<String, BigDecimal>, diesel::result::Error>(accumulator)
   }).await
     .map_err(|e| {
       eprintln!("{}", e);
@@ -449,6 +480,7 @@ async fn main() -> std::io::Result<()> {
       .service(get_epoch_data)
       .service(get_distribution_data)
       .service(get_current_distribution)
+      .service(get_pool_weights)
       .service(get_swaps)
       .service(get_volume)
       .service(get_liquidity_changes)

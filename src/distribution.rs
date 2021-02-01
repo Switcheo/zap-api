@@ -75,7 +75,7 @@ impl EpochInfo {
     if self.is_initial() {
       zwap_emission::RETROACTIVE_DISTRIBUTION_CUTOFF_TIME
     } else {
-      self.next_epoch_start
+      self.next_epoch_start()
     }
   }
 
