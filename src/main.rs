@@ -190,7 +190,7 @@ async fn generate_epoch(
   let epoch_number = current_epoch.epoch_number() as i32;
 
   let start = Some(epoch_info.current_epoch_start());
-  let end = Some(epoch_info.next_epoch_start());
+  let end = Some(epoch_info.current_epoch_end());
 
   let result = web::block(move || {
     if db::epoch_exists(&conn, epoch_number)? {
@@ -254,7 +254,13 @@ async fn generate_epoch(
     // add developer share
     let dt = epoch_info.tokens_for_developers();
     if dt.is_positive() {
-      accumulator.insert(network.developer_address(), dt);
+      let current = accumulator.entry(network.developer_address()).or_insert(BigDecimal::default());
+      *current += dt
+    }
+
+    let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
+    if total_distributed > epoch_info.tokens_for_epoch() {
+      panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
     }
 
     let leaves = Distribution::from(accumulator);

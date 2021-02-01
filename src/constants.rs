@@ -2,6 +2,7 @@ use std::{fmt};
 use std::collections::HashMap;
 
 pub mod zwap_emission {
+  pub static RETROACTIVE_DISTRIBUTION_CUTOFF_TIME: i64 = 1610964000;
   pub static DISTRIBUTION_START_TIME: i64 = 1612339200;
   pub static EPOCH_PERIOD: i64 = 604800; // one week
   pub static TOTAL_NUMBER_OF_EPOCH: u32 = 152;

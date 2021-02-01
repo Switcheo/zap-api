@@ -71,6 +71,14 @@ impl EpochInfo {
     }
   }
 
+  pub fn current_epoch_end(&self) -> i64 {
+    if self.is_initial() {
+      zwap_emission::RETROACTIVE_DISTRIBUTION_CUTOFF_TIME
+    } else {
+      self.next_epoch_start
+    }
+  }
+
   pub fn next_epoch_start(&self) -> i64 {
     self.next_epoch_start
   }
