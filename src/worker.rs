@@ -414,7 +414,7 @@ impl Handler<FetchSwaps> for EventFetchActor {
       Err(e) => {
         println!("{:#?}", e);
         println!("Unhandled error while fetching, retrying in 10 seconds..");
-        self.coordinator.do_send(NextFetch{event: Event::Burnt, page_number: msg.page_number, delay: 10 });
+        self.coordinator.do_send(NextFetch{event: Event::Swapped, page_number: msg.page_number, delay: 10 });
       }
     }
   }
