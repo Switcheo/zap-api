@@ -8,8 +8,8 @@ use chrono::{NaiveDateTime, Utc};
 use crate::models;
 use crate::pagination::*;
 
-/// Fetch swaps by page.
-pub fn fetch_swaps(
+/// Get paginated swaps.
+pub fn get_swaps(
   conn: &PgConnection,
   per_page: Option<i64>,
   page: Option<i64>,
@@ -38,8 +38,8 @@ pub fn fetch_swaps(
     .load_and_count_pages::<models::Swap>(conn)?)
 }
 
-/// Fetch liquidity changes by page.
-pub fn fetch_liquidity_changes(
+/// Get paginated liquidity changes.
+pub fn get_liquidity_changes(
   conn: &PgConnection,
   per_page: Option<i64>,
   page: Option<i64>,
@@ -66,8 +66,8 @@ pub fn fetch_liquidity_changes(
   )
 }
 
-/// Fetch distributions by epoch / address.
-pub fn fetch_distributions(
+/// Get distributions by epoch, optionally filtered by address.
+pub fn get_distributions(
   conn: &PgConnection,
   epoch: Option<i32>,
   address: Option<&String>,
@@ -90,7 +90,21 @@ pub fn fetch_distributions(
   )
 }
 
-/// Get all pools by token address.
+/// Get all distributions for an address.
+pub fn get_distributions_by_address(
+  conn: &PgConnection,
+  address: &String,
+) -> Result<Vec<models::Distribution>, diesel::result::Error> {
+  use crate::schema::distributions::dsl::*;
+
+  let query = distributions
+    .order(epoch_number.asc())
+    .filter(address_bech32.eq(address));
+
+  Ok(query.load(conn)?)
+}
+
+/// Get all pools.
 pub fn get_pools(
   conn: &PgConnection,
 ) -> Result<Vec<String>, diesel::result::Error> {
