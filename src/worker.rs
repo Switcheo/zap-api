@@ -413,7 +413,7 @@ impl Handler<FetchSwaps> for EventFetchActor {
       }
 
       println!("Next page..");
-      return Ok(NextFetch{event: Event::Swapped, page_number: msg.page_number, delay: 1 });
+      return Ok(NextFetch{event: Event::Swapped, page_number: msg.page_number + 1, delay: 1 });
     };
 
     // handle retrying
