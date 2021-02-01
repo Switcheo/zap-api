@@ -5,7 +5,7 @@ use diesel::r2d2::{Pool, ConnectionManager};
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
-use std::{thread, time};
+use std::time::{Duration};
 use std::convert::TryInto;
 use std::ops::Neg;
 use std::str::FromStr;
@@ -15,33 +15,89 @@ use crate::models;
 use crate::responses;
 use crate::constants::{Event, Network};
 
-pub struct Worker{
+pub struct Coordinator{
   db_pool: Pool<ConnectionManager<PgConnection>>,
+  arbiter: Option<Addr<EventFetchActor>>,
 }
 
-impl Worker {
+impl Coordinator {
   pub fn new(db_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
-    Worker { db_pool: db_pool }
+    Coordinator { db_pool: db_pool, arbiter: None }
   }
 }
 
-impl Actor for Worker {
+impl Actor for Coordinator {
   type Context = Context<Self>;
 
-  fn started(&mut self, _: &mut Self::Context) {
-    println!("Worker is alive!");
+  fn started(&mut self, ctx: &mut Self::Context) {
+    println!("Coordinator is alive!");
     let pool = self.db_pool.clone();
-    let addr = SyncArbiter::start(3, move || EventFetchActor::new(pool.clone()));
-    addr.do_send(FetchMints { page_number: 1, next: addr.clone() });
-    addr.do_send(FetchBurns { page_number: 1, next: addr.clone() });
-    addr.do_send(FetchSwaps { page_number: 1, next: addr.clone() });
+    let coordinator = ctx.address();
+    let arbiter = SyncArbiter::start(3, move || EventFetchActor::new(pool.clone(), coordinator.clone()));
+    arbiter.do_send(FetchMints { page_number: 1 });
+    arbiter.do_send(FetchBurns { page_number: 1 });
+    arbiter.do_send(FetchSwaps { page_number: 1 });
+    self.arbiter = Some(arbiter);
   }
 
   fn stopped(&mut self, _: &mut Self::Context) {
-    println!("Worker died!");
+    println!("Coordinator died!");
   }
 }
 
+/// Define handler for `NextFetch` message which
+/// is sent from FetchActors to continue fetching
+/// next pages.
+impl Handler<NextFetch> for Coordinator {
+  type Result = ();
+
+  fn handle(&mut self, msg: NextFetch, ctx: &mut Context<Self>) -> Self::Result {
+    ctx.run_later(Duration::from_secs(msg.delay), move |worker, _| {
+      let arbiter = worker.arbiter.as_ref().unwrap();
+      let page_number = msg.page_number;
+      match msg.event{
+        Event::Minted => arbiter.do_send(FetchMints { page_number }),
+        Event::Burnt => arbiter.do_send(FetchBurns { page_number }),
+        Event::Swapped => arbiter.do_send(FetchSwaps { page_number }),
+      };
+    });
+  }
+}
+
+/// Define messages
+/// All messages return unit result, as error handling
+/// is done within the handler itself.
+
+// Messages for coordinator
+#[derive(Message)]
+#[rtype(result = "()")]
+struct NextFetch {
+  event: Event,
+  page_number: u16,
+  delay: u64,
+}
+
+// Messages for fetch actors
+#[derive(Message)]
+#[rtype(result = "()")]
+struct FetchSwaps {
+  page_number: u16,
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+struct FetchMints {
+  page_number: u16,
+}
+
+#[derive(Message)]
+#[rtype(result = "()")]
+struct FetchBurns {
+  page_number: u16,
+}
+
+/// The actual fetch result
+type FetchResult = Result<NextFetch, FetchError>;
 
 #[derive(Debug)]
 enum FetchError {
@@ -49,6 +105,7 @@ enum FetchError {
     // Supplying extra info requires adding more data to the type.
     Fetch(reqwest::Error),
     Parse(serde_json::Error),
+    Database(diesel::result::Error),
 }
 
 impl From<reqwest::Error> for FetchError {
@@ -63,34 +120,15 @@ impl From<serde_json::Error> for FetchError {
   }
 }
 
-type FetchResult = Result<(), FetchError>;
-
-/// Define messages
-#[derive(Message)]
-#[rtype(result = "FetchResult")]
-struct FetchSwaps {
-  page_number: u16,
-  next: actix::Addr<EventFetchActor>
+impl From<diesel::result::Error> for FetchError {
+  fn from(err: diesel::result::Error) -> FetchError {
+    FetchError::Database(err)
+  }
 }
 
-/// Define messages
-#[derive(Message)]
-#[rtype(result = "FetchResult")]
-struct FetchMints {
-  page_number: u16,
-  next: actix::Addr<EventFetchActor>
-}
-
-/// Define messages
-#[derive(Message)]
-#[rtype(result = "FetchResult")]
-struct FetchBurns {
-  page_number: u16,
-  next: actix::Addr<EventFetchActor>
-}
-
-/// Define actor
+/// Define fetch actor
 struct EventFetchActor {
+  coordinator: Addr<Coordinator>,
   client: Client,
   network: Network,
   contract_hash: String,
@@ -98,7 +136,7 @@ struct EventFetchActor {
 }
 
 impl EventFetchActor {
-  fn new(db_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
+  fn new(db_pool: Pool<ConnectionManager<PgConnection>>, coordinator: Addr<Coordinator>) -> Self {
     let api_key = std::env::var("VIEWBLOCK_API_KEY").expect("VIEWBLOCK_API_KEY env var missing.");
     let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
     let network = match network_str.as_str() {
@@ -119,6 +157,7 @@ impl EventFetchActor {
       .expect("Failed to build client.");
 
     Self {
+      coordinator,
       client,
       network,
       contract_hash,
@@ -171,200 +210,212 @@ impl Actor for EventFetchActor {
 
 /// Define handler for `FetchMints` message
 impl Handler<FetchMints> for EventFetchActor {
-  type Result = FetchResult;
+  type Result = ();
 
   fn handle(&mut self, msg: FetchMints, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, Event::Minted)?;
+    let mut execute = || -> FetchResult {
+      let result = self.get_and_parse(msg.page_number, Event::Minted)?;
 
-    if result.txs.len() == 0 {
-      println!("Done with mints.");
-      thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchMints { page_number: 1, next: msg.next.clone() });
-      return Ok(());
-    }
+      if result.txs.len() == 0 {
+        println!("Done with mints.");
+        return Ok(NextFetch{event: Event::Minted, page_number: 1, delay: 60 });
+      }
 
-    for tx in result.txs {
-      for (i, event) in tx.events.iter().enumerate() {
-        let name = event.name.as_str();
-        if name == "Mint" {
-          let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-          let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-          let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+      for tx in result.txs {
+        for (i, event) in tx.events.iter().enumerate() {
+          let name = event.name.as_str();
+          if name == "Mint" {
+            let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
+            let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
+            let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
 
-          let add_liquidity = models::NewLiquidityChange {
-            transaction_hash: &tx.hash,
-            event_sequence: &(i as i32),
-            block_height: &tx.block_height,
-            block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-            initiator_address: address,
-            token_address: pool,
-            change_amount: &BigDecimal::from_str(amount).unwrap(),
-          };
+            let add_liquidity = models::NewLiquidityChange {
+              transaction_hash: &tx.hash,
+              event_sequence: &(i as i32),
+              block_height: &tx.block_height,
+              block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
+              initiator_address: address,
+              token_address: pool,
+              change_amount: &BigDecimal::from_str(amount).unwrap(),
+            };
 
-          println!("Inserting: {:?}", add_liquidity);
+            println!("Inserting: {:?}", add_liquidity);
 
-          let conn = self.db_pool.get().expect("couldn't get db connection from pool");
-          let res = db::insert_liquidity_change(add_liquidity, &conn);
-          match res {
-            Err(err) => {
+            let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+            let res = db::insert_liquidity_change(add_liquidity, &conn);
+            if let Err(e) = res {
               if self.backfill_complete_for(Event::Minted) {
                 println!("Fetched till last inserted mint.");
-                thread::sleep(time::Duration::new(60, 0));
-                msg.next.do_send(FetchMints { page_number: 1, next: msg.next.clone() });
-                return Ok(())
+                return Ok(NextFetch{event: Event::Minted, page_number: 1, delay: 60 });
               }
-              println!("Error inserting: {}", err.to_string())
-            },
-            Ok(n) => n,
+              return Err(FetchError::from(e))
+            }
           }
         }
       }
-    }
 
-    println!("Next page..");
-    thread::sleep(time::Duration::new(1, 0));
-    msg.next.do_send(FetchMints { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(())
+      println!("Next page..");
+      return Ok(NextFetch{event: Event::Minted, page_number: msg.page_number + 1, delay: 1 });
+    };
+
+    // handle retrying
+    let result = execute();
+    match result {
+      Ok(msg) => self.coordinator.do_send(msg),
+      Err(e) => {
+        println!("{:#?}", e);
+        println!("Unhandled error while fetching, retrying in 10 seconds..");
+        self.coordinator.do_send(NextFetch{event: Event::Minted, page_number: msg.page_number, delay: 10 });
+      }
+    }
   }
 }
 
 /// Define handler for `FetchBurns` message
 impl Handler<FetchBurns> for EventFetchActor {
-  type Result = FetchResult;
+  type Result = ();
 
   fn handle(&mut self, msg: FetchBurns, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, Event::Burnt)?;
+    let mut execute = || -> FetchResult {
+      let result = self.get_and_parse(msg.page_number, Event::Burnt)?;
 
-    if result.txs.len() == 0 {
-      println!("Done with burns.");
-      thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchBurns { page_number: 1, next: msg.next.clone() });
-      return Ok(());
-    }
+      if result.txs.len() == 0 {
+        println!("Done with burns.");
+        return Ok(NextFetch{event: Event::Burnt, page_number: 1, delay: 60 });
+      }
 
-    for tx in result.txs {
-      for (i, event) in tx.events.iter().enumerate() {
-        let name = event.name.as_str();
-        if name == "Burnt" {
-          let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-          let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-          let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+      for tx in result.txs {
+        for (i, event) in tx.events.iter().enumerate() {
+          let name = event.name.as_str();
+          if name == "Burnt" {
+            let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
+            let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
+            let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
 
-          let remove_liquidity = models::NewLiquidityChange {
-            transaction_hash: &tx.hash,
-            event_sequence: &(i as i32),
-            block_height: &tx.block_height,
-            block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-            initiator_address: address,
-            token_address: pool,
-            change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
-          };
+            let remove_liquidity = models::NewLiquidityChange {
+              transaction_hash: &tx.hash,
+              event_sequence: &(i as i32),
+              block_height: &tx.block_height,
+              block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
+              initiator_address: address,
+              token_address: pool,
+              change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
+            };
 
-          println!("Inserting: {:?}", remove_liquidity);
+            println!("Inserting: {:?}", remove_liquidity);
 
-          let conn = self.db_pool.get().expect("couldn't get db connection from pool");
-          let res = db::insert_liquidity_change(remove_liquidity, &conn);
-          match res {
-            Err(err) => {
+            let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+            let res = db::insert_liquidity_change(remove_liquidity, &conn);
+            if let Err(e) = res {
               if self.backfill_complete_for(Event::Burnt) {
                 println!("Fetched till last inserted burn.");
-                thread::sleep(time::Duration::new(60, 0));
-                msg.next.do_send(FetchBurns { page_number: 1, next: msg.next.clone() });
-                return Ok(())
+                return Ok(NextFetch{event: Event::Burnt, page_number: 1, delay: 60 });
               }
-              println!("Error inserting: {}", err.to_string())
-            },
-            Ok(n) => n,
+              return Err(FetchError::from(e))
+            }
           }
         }
       }
-    }
 
-    println!("Next page..");
-    thread::sleep(time::Duration::new(1, 0));
-    msg.next.do_send(FetchBurns { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(())
+      println!("Next page..");
+      return Ok(NextFetch{event: Event::Burnt, page_number: msg.page_number + 1, delay: 1 });
+    };
+
+    // handle retrying
+    let result = execute();
+    match result {
+      Ok(m) => self.coordinator.do_send(m),
+      Err(e) => {
+        println!("{:#?}", e);
+        println!("Unhandled error while fetching, retrying in 10 seconds..");
+        self.coordinator.do_send(NextFetch{event: Event::Burnt, page_number: msg.page_number, delay: 10 });
+      }
+    }
   }
 }
 
 /// Define handler for `FetchSwaps` message
 impl Handler<FetchSwaps> for EventFetchActor {
-  type Result = FetchResult;
+  type Result = ();
 
   fn handle(&mut self, msg: FetchSwaps, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let result = self.get_and_parse(msg.page_number, Event::Swapped)?;
+    let mut execute = || -> FetchResult {
+      let result = self.get_and_parse(msg.page_number, Event::Swapped)?;
 
-    if result.txs.len() == 0 {
-      println!("Done with swaps.");
-      thread::sleep(time::Duration::new(60, 0));
-      msg.next.do_send(FetchSwaps { page_number: 1, next: msg.next.clone() });
-      return Ok(());
-    }
+      if result.txs.len() == 0 {
+        println!("Done with swaps.");
+        return Ok(NextFetch{event: Event::Swapped, page_number: 1, delay: 60 });
+      }
 
-    for tx in result.txs {
-      for (i, event) in tx.events.iter().enumerate() {
-        let name = event.name.as_str();
-        if name == "Swapped" {
-          let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-          let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-          let input_amount = event.params.pointer("/input/0/params/0").unwrap().as_str().expect("Malformed response!");
-          let output_amount = event.params.pointer("/output/0/params/0").unwrap().as_str().expect("Malformed response!");
-          let input_denom = event.params.pointer("/input/1/name").unwrap().as_str().expect("Malformed response!");
+      for tx in result.txs {
+        for (i, event) in tx.events.iter().enumerate() {
+          let name = event.name.as_str();
+          if name == "Swapped" {
+            let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
+            let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
+            let input_amount = event.params.pointer("/input/0/params/0").unwrap().as_str().expect("Malformed response!");
+            let output_amount = event.params.pointer("/output/0/params/0").unwrap().as_str().expect("Malformed response!");
+            let input_denom = event.params.pointer("/input/1/name").unwrap().as_str().expect("Malformed response!");
 
-          let token_amount;
-          let zil_amount;
-          let is_sending_zil;
-          match input_denom {
-            "Token" => {
-              token_amount = BigDecimal::from_str(input_amount).unwrap();
-              zil_amount = BigDecimal::from_str(output_amount).unwrap();
-              is_sending_zil = false;
-            },
-            "Zil" => {
-              zil_amount = BigDecimal::from_str(input_amount).unwrap();
-              token_amount = BigDecimal::from_str(output_amount).unwrap();
-              is_sending_zil = true;
+            let token_amount;
+            let zil_amount;
+            let is_sending_zil;
+            match input_denom {
+              "Token" => {
+                token_amount = BigDecimal::from_str(input_amount).unwrap();
+                zil_amount = BigDecimal::from_str(output_amount).unwrap();
+                is_sending_zil = false;
+              },
+              "Zil" => {
+                zil_amount = BigDecimal::from_str(input_amount).unwrap();
+                token_amount = BigDecimal::from_str(output_amount).unwrap();
+                is_sending_zil = true;
+              }
+              _ => {
+                panic!("Malformed input denom!");
+              }
             }
-            _ => {
-              panic!("Malformed input denom!");
-            }
-          }
 
-          let new_swap = models::NewSwap {
-            transaction_hash: &tx.hash,
-            event_sequence: &(i as i32),
-            block_height: &tx.block_height,
-            block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-            initiator_address: address,
-            token_address: pool,
-            token_amount: &token_amount,
-            zil_amount: &zil_amount,
-            is_sending_zil: &is_sending_zil,
-          };
+            let new_swap = models::NewSwap {
+              transaction_hash: &tx.hash,
+              event_sequence: &(i as i32),
+              block_height: &tx.block_height,
+              block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
+              initiator_address: address,
+              token_address: pool,
+              token_amount: &token_amount,
+              zil_amount: &zil_amount,
+              is_sending_zil: &is_sending_zil,
+            };
 
-          println!("Inserting: {:?}", new_swap);
+            println!("Inserting: {:?}", new_swap);
 
-          let conn = self.db_pool.get().expect("couldn't get db connection from pool");
-          let res = db::insert_swap(new_swap, &conn);
-          match res {
-            Err(err) => {
+            let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+            let res = db::insert_swap(new_swap, &conn);
+            if let Err(e) = res {
               if self.backfill_complete_for(Event::Swapped) {
                 println!("Fetched till last inserted swap.");
-                thread::sleep(time::Duration::new(60, 0));
-                msg.next.do_send(FetchSwaps { page_number: 1, next: msg.next.clone() });
-                return Ok(())
+                return Ok(NextFetch{event: Event::Swapped, page_number: 1, delay: 60 });
               }
-              println!("Error inserting: {}", err.to_string())
-            },
-            Ok(n) => n,
+              return Err(FetchError::from(e))
+            }
           }
         }
       }
-    }
 
-    println!("Next page..");
-    thread::sleep(time::Duration::new(1, 0));
-    msg.next.do_send(FetchSwaps { page_number: msg.page_number + 1, next: msg.next.clone() });
-    return Ok(())
+      println!("Next page..");
+      return Ok(NextFetch{event: Event::Swapped, page_number: msg.page_number, delay: 1 });
+    };
+
+    // handle retrying
+    let result = execute();
+    match result {
+      Ok(msg) => self.coordinator.do_send(msg),
+      Err(e) => {
+        println!("{:#?}", e);
+        println!("Unhandled error while fetching, retrying in 10 seconds..");
+        self.coordinator.do_send(NextFetch{event: Event::Burnt, page_number: msg.page_number, delay: 10 });
+      }
+    }
   }
 }

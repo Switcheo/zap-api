@@ -423,7 +423,7 @@ async fn main() -> std::io::Result<()> {
   // run worker
   let run_worker = std::env::var("RUN_WORKER").unwrap_or(String::from("false"));
   if run_worker == "true" || run_worker == "t" || run_worker == "1" {
-    let _addr = worker::Worker::new(pool.clone()).start();
+    let _addr = worker::Coordinator::new(pool.clone()).start();
   }
 
   // run migrations

@@ -12,6 +12,7 @@ actix-cors = "0.5.4"
 actix-web = "3"
 bigdecimal = { version = "^0.1.2", features = ["serde"] }
 chrono = { version = "^0.4.19", features = ["serde"] }
+futures = "0.3"
 ring = "^0.16.19"
 diesel = { version = "^1.4.5", features = ["postgres", "r2d2", "chrono", "numeric", "uuid"] }
 diesel_migrations = "1.4.0"
