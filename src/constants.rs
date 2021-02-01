@@ -44,8 +44,8 @@ impl Network {
       Network::TestNet => {
         match event {
           Event::Minted => "0x9b8b5695c406d71137f5f420a67cf6b352ae865068530d293116dde072dbfdf6",
-          Event::Burnt => "",
-          Event::Swapped => "",
+          Event::Burnt => "0xfbec07771a8cabd7c90c084b4ca77bf0a7216970eae5f68233b21cf13c947a3f",
+          Event::Swapped => "0x1b660c073e30157e50085848c3595fda62c87ce1e7db328a46f8eb48c4c36957",
         }
       },
     }
@@ -68,7 +68,7 @@ impl Network {
       Network::MainNet => [
         (String::from("zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e"), 3), // gZIL
         (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 2), // XSGD
-        // TODO: (String::from(""), 5), // ZWAP
+        (String::from("zil1v9wguye09y7kkvthez5f6aftk8ln8vg8am0wvq"), 5), // ZWAP
       ].iter().cloned().collect(),
     }
   }
