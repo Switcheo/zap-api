@@ -248,7 +248,10 @@ impl Handler<FetchMints> for EventFetchActor {
                 println!("Fetched till last inserted mint.");
                 return Ok(NextFetch{event: Event::Minted, page_number: 1, delay: 60 });
               }
-              return Err(FetchError::from(e))
+              match e {
+                diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => println!("Ignoring duplicate entry!"),
+                _ => return Err(FetchError::from(e))
+              }
             }
           }
         }
@@ -311,7 +314,10 @@ impl Handler<FetchBurns> for EventFetchActor {
                 println!("Fetched till last inserted burn.");
                 return Ok(NextFetch{event: Event::Burnt, page_number: 1, delay: 60 });
               }
-              return Err(FetchError::from(e))
+              match e {
+                diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => println!("Ignoring duplicate entry!"),
+                _ => return Err(FetchError::from(e))
+              }
             }
           }
         }
@@ -397,7 +403,10 @@ impl Handler<FetchSwaps> for EventFetchActor {
                 println!("Fetched till last inserted swap.");
                 return Ok(NextFetch{event: Event::Swapped, page_number: 1, delay: 60 });
               }
-              return Err(FetchError::from(e))
+              match e {
+                diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => println!("Ignoring duplicate entry!"),
+                _ => return Err(FetchError::from(e))
+              }
             }
           }
         }
