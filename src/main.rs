@@ -275,7 +275,7 @@ async fn generate_epoch(
 
     // add developer share
     let dt = epoch_info.tokens_for_developers();
-    if dt.is_positive() {
+    if dt.is_positive() && !epoch_info.trader_epoch() {
       let current = accumulator.entry(network.developer_address()).or_insert(BigDecimal::default());
       *current += dt
     }
