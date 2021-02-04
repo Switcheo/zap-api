@@ -19,6 +19,7 @@ use diesel::r2d2::{self, ConnectionManager};
 use hex::{encode};
 use serde::{Deserialize};
 use std::collections::HashMap;
+use std::time::{SystemTime};
 use std::str;
 
 mod db;
@@ -187,12 +188,21 @@ async fn generate_epoch(
   let current_epoch = EpochInfo::default();
   let current_epoch_number = current_epoch.epoch_number();
   let epoch_info = EpochInfo::new(std::cmp::max(0, current_epoch_number - 1));
-  let epoch_number = current_epoch.epoch_number() as i32;
+  let epoch_number = epoch_info.epoch_number() as i32;
 
   let start = Some(epoch_info.current_epoch_start());
   let end = Some(epoch_info.current_epoch_end());
 
   let result = web::block(move || {
+    let current_time = SystemTime::now()
+      .duration_since(SystemTime::UNIX_EPOCH)
+      .expect("invalid server time")
+      .as_secs() as i64;
+
+    if current_time < end.unwrap() {
+      return Ok(String::from("Epoch not yet over!"))
+    }
+
     if db::epoch_exists(&conn, epoch_number)? {
       return Ok(String::from("Epoch already generated!"))
     }
