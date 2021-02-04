@@ -28,11 +28,11 @@ impl EpochInfo {
     let tokens_per_epoch = zwap_emission::TOKENS_PER_EPOCH;
 
     let next_epoch_start =
-      if epoch_number == 0 {
+      if epoch_number == 0 || epoch_number == 1 {
         first_epoch_start
       } else {
-        // -1 to avoid double counting first period in `first_epoch_start`
-        (std::cmp::min(epoch_number + 1, total_epoch.into()) - 1) * epoch_period + first_epoch_start
+        // first real epoch starts from 2
+        std::cmp::min(epoch_number + 1, total_epoch.into()) * epoch_period + first_epoch_start
       };
 
     EpochInfo {
@@ -52,13 +52,18 @@ impl EpochInfo {
       .as_secs() as i64;
 
     let epoch_number = (current_time - zwap_emission::DISTRIBUTION_START_TIME) as f64 / zwap_emission::EPOCH_PERIOD as f64;
-    let current_epoch = std::cmp::max(0, epoch_number.ceil() as i64);
+    let current_epoch = std::cmp::max(0, epoch_number.ceil() as i64 + 1); // first real epoch starts from 2
 
     EpochInfo::new(current_epoch)
   }
 
   pub fn is_initial(&self) -> bool {
-    self.current_epoch == 0
+    self.current_epoch == 0 || self.current_epoch == 1
+  }
+
+  // XXX: epoch 1 is an empty epoch that only has trader data
+  pub fn trader_epoch(&self) -> bool {
+    self.current_epoch == 1
   }
 
   pub fn epoch_number(&self) -> i64 {
@@ -69,7 +74,7 @@ impl EpochInfo {
     if self.is_initial() {
       0
     } else {
-      std::cmp::min(self.current_epoch, zwap_emission::TOTAL_NUMBER_OF_EPOCH.into()) * zwap_emission::EPOCH_PERIOD + zwap_emission::DISTRIBUTION_START_TIME
+      (std::cmp::min(self.current_epoch, zwap_emission::TOTAL_NUMBER_OF_EPOCH.into()) - 1) * zwap_emission::EPOCH_PERIOD + zwap_emission::DISTRIBUTION_START_TIME
     }
   }
 

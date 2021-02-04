@@ -108,7 +108,7 @@ pub struct Distribution {
   pub proof: String,
 }
 
-#[derive(Debug, Insertable)]
+#[derive(Debug, Clone, Insertable)]
 #[table_name="distributions"]
 pub struct NewDistribution {
   pub epoch_number: i32,

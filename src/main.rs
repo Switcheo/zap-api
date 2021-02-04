@@ -185,15 +185,21 @@ async fn generate_epoch(
   network: web::Data<Network>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
-  let current_epoch = EpochInfo::default();
-  let current_epoch_number = current_epoch.epoch_number();
-  let epoch_info = EpochInfo::new(std::cmp::max(0, current_epoch_number - 1));
-  let epoch_number = epoch_info.epoch_number() as i32;
-
-  let start = Some(epoch_info.current_epoch_start());
-  let end = Some(epoch_info.current_epoch_end());
 
   let result = web::block(move || {
+    let current_epoch = EpochInfo::default();
+    let current_epoch_number = current_epoch.epoch_number();
+    let mut epoch_number = std::cmp::max(0, current_epoch_number - 1) as i32;
+
+    if epoch_number == 0 && db::epoch_exists(&conn, epoch_number)? {
+      epoch_number = 1 // generate trader epoch
+    }
+
+    let epoch_info = EpochInfo::new(epoch_number as i64);
+
+    let start = Some(epoch_info.current_epoch_start());
+    let end = Some(epoch_info.current_epoch_end());
+
     let current_time = SystemTime::now()
       .duration_since(SystemTime::UNIX_EPOCH)
       .expect("invalid server time")
@@ -240,27 +246,33 @@ async fn generate_epoch(
           }
         }).collect()
       };
-    // for each individual TWAL, calculate the tokens
-    let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
+
     let mut accumulator: HashMap<String, BigDecimal> = HashMap::new();
-    for l in user_liquidity.into_iter() {
-      if let Some(pool) = distribution.get(&l.pool) {
-        let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
-        let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
-        *current += share
+
+    // for each individual TWAL, calculate the tokens
+    if !epoch_info.trader_epoch() {
+      let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
+      for l in user_liquidity.into_iter() {
+        if let Some(pool) = distribution.get(&l.pool) {
+          let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+          let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
+          *current += share
+        }
       }
     }
+
     // if initial epoch, add distr for swap volumes
     let tt = epoch_info.tokens_for_traders();
     if tt.is_positive() {
       let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?.into_iter().map(|v| v.in_zil_amount + v.out_zil_amount).sum();
       let user_volume = db::get_volume_by_address(&conn, start, end)?;
       for v in user_volume.into_iter() {
-        let share = utils::round_down(tt.clone() * v.amount / total_volume.clone(), 0);
+        let share = utils::round_down(tt.clone() * v.amount.clone() / total_volume.clone(), 0);
         let current = accumulator.entry(v.address).or_insert(BigDecimal::default());
         *current += share
       }
     }
+
     // add developer share
     let dt = epoch_info.tokens_for_developers();
     if dt.is_positive() {
@@ -276,7 +288,7 @@ async fn generate_epoch(
     let leaves = Distribution::from(accumulator);
     let tree = distribution::construct_merkle_tree(leaves);
     let proofs = distribution::get_proofs(tree.clone());
-    let records = proofs.into_iter().map(|(d, p)| {
+    let records: Vec<models::NewDistribution> = proofs.into_iter().map(|(d, p)| {
       models::NewDistribution{
         epoch_number,
         address_bech32: d.address(),
@@ -290,7 +302,9 @@ async fn generate_epoch(
       return Ok(String::from("Epoch already generated!"))
     }
 
-    db::insert_distributions(records, &conn).expect("Failed to insert distributions!");
+    for r in records.chunks(10000).into_iter() {
+      db::insert_distributions(r.to_vec(), &conn).expect("Failed to insert distributions!");
+    };
 
     Ok::<String, diesel::result::Error>(encode(tree.root().data().clone().1))
   }).await

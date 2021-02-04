@@ -194,8 +194,8 @@ pub fn get_volume_by_address(
   let mut query = swaps
     .group_by((token_address, initiator_address))
     .select((
-      sql::<Text>("initiator_address AS address"),
       sql::<Text>("token_address AS pool"),
+      sql::<Text>("initiator_address AS address"),
       sql::<Numeric>("SUM(zil_amount) AS amount"),
     ))
     .into_boxed::<Pg>();
