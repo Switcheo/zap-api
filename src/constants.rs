@@ -5,7 +5,7 @@ pub mod zwap_emission {
   pub static RETROACTIVE_DISTRIBUTION_CUTOFF_TIME: i64 = 1610964000;
   pub static DISTRIBUTION_START_TIME: i64 = 1612339200;
   pub static EPOCH_PERIOD: i64 = 604800; // one week
-  pub static TOTAL_NUMBER_OF_EPOCH: u32 = 152;
+  pub static TOTAL_NUMBER_OF_EPOCH: u32 = 152 + 1; // +1 for dummy epoch released for retroactive traders airdrop
   pub static TOKENS_PER_EPOCH: u32 = 6250;
 }
 
