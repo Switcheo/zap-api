@@ -32,7 +32,7 @@ impl EpochInfo {
         first_epoch_start
       } else {
         // first real epoch starts from 2
-        std::cmp::min(epoch_number + 1, total_epoch.into()) * epoch_period + first_epoch_start
+        std::cmp::min(epoch_number - 1, total_epoch.into()) * epoch_period + first_epoch_start
       };
 
     EpochInfo {
@@ -74,7 +74,7 @@ impl EpochInfo {
     if self.is_initial() {
       0
     } else {
-      (std::cmp::min(self.current_epoch, zwap_emission::TOTAL_NUMBER_OF_EPOCH.into()) - 1) * zwap_emission::EPOCH_PERIOD + zwap_emission::DISTRIBUTION_START_TIME
+      (std::cmp::min(self.current_epoch - 1, zwap_emission::TOTAL_NUMBER_OF_EPOCH.into()) - 1) * zwap_emission::EPOCH_PERIOD + zwap_emission::DISTRIBUTION_START_TIME
     }
   }
 

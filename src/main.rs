@@ -148,14 +148,14 @@ async fn get_liquidity(
 /// Get time-weighted liquidity for all pools.
 #[get("/weighted_liquidity")]
 async fn get_weighted_liquidity(
-  query: web::Query<TimeInfo>,
+  query: web::Query<PeriodInfo>,
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, Some(0), query.timestamp, filter.address.as_ref()))
+  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_ref()))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
@@ -237,7 +237,7 @@ async fn generate_epoch(
           if let Some(weight) = pool_weights.get(&i.pool) {
             Some((i.pool,
               PoolDistribution{ // each pool has a weighted allocation
-                tokens: utils::round_down(pt.clone() * BigDecimal::from(total_weight) / BigDecimal::from(*weight), 0),
+                tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
                 weighted_liquidity: i.amount,
               }
             ))
@@ -386,7 +386,7 @@ async fn get_current_distribution(
           if let Some(weight) = pool_weights.get(&i.pool) {
             Some((i.pool,
               PoolDistribution{ // each pool has a weighted allocation
-                tokens: utils::round_down(pt.clone() * BigDecimal::from(total_weight) / BigDecimal::from(*weight), 0),
+                tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
                 weighted_liquidity: i.amount,
               }
             ))
