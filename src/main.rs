@@ -125,7 +125,7 @@ async fn get_volume(
   Ok(HttpResponse::Ok().json(volumes))
 }
 
-/// Get .
+/// Get pool transactions including both swaps and liquidity changes.
 #[get("/transactions")]
 async fn get_transactions(
   query: web::Query<PeriodInfo>,

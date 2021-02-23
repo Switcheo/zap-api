@@ -19,6 +19,8 @@ table! {
         initiator_address -> Varchar,
         token_address -> Varchar,
         change_amount -> Numeric,
+        token_amount -> Numeric,
+        zil_amount -> Numeric,
     }
 }
 
@@ -45,10 +47,12 @@ table! {
         block_timestamp -> Timestamp,
         initiator_address -> Varchar,
         token_address -> Varchar,
+
+        token_amount -> Nullable<Numeric>,
+        zil_amount -> Nullable<Numeric>,
+
         tx_type -> Varchar,
 
-        swap0_token_amount -> Nullable<Numeric>,
-        swap0_zil_amount -> Nullable<Numeric>,
         swap0_is_sending_zil -> Nullable<Bool>,
 
         swap1_token_address -> Nullable<Varchar>,

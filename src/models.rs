@@ -44,6 +44,8 @@ pub struct LiquidityChange {
   pub initiator_address: String,
   pub token_address: String,
   pub change_amount: BigDecimal,
+  pub token_amount: BigDecimal,
+  pub zil_amount: BigDecimal,
 }
 
 #[derive(Debug, Insertable)]
@@ -56,6 +58,8 @@ pub struct NewLiquidityChange<'a> {
   pub initiator_address: &'a str,
   pub token_address: &'a str,
   pub change_amount: &'a BigDecimal,
+  pub token_amount: &'a BigDecimal,
+  pub zil_amount: &'a BigDecimal,
 }
 
 #[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
@@ -106,10 +110,12 @@ pub struct PoolTx {
   pub block_timestamp: NaiveDateTime,
   pub initiator_address: String,
   pub token_address: String,
+
+  pub token_amount: Option<BigDecimal>,
+  pub zil_amount: Option<BigDecimal>,
+  
   pub tx_type: String,
 
-  pub swap0_token_amount: Option<BigDecimal>,
-  pub swap0_zil_amount: Option<BigDecimal>,
   pub swap0_is_sending_zil: Option<bool>,
 
   pub swap1_token_address: Option<String>,

@@ -229,6 +229,10 @@ impl Handler<FetchMints> for EventFetchActor {
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
             let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
 
+            let transfer_event = tx.events.iter().find(|&event| event.name.as_str() == "TransferFromSuccess").unwrap();
+            let token_amount = transfer_event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+            let zil_amount = tx.value.as_str();
+
             let add_liquidity = models::NewLiquidityChange {
               transaction_hash: &tx.hash,
               event_sequence: &(i as i32),
@@ -237,6 +241,8 @@ impl Handler<FetchMints> for EventFetchActor {
               initiator_address: address,
               token_address: pool,
               change_amount: &BigDecimal::from_str(amount).unwrap(),
+              token_amount: &BigDecimal::from_str(token_amount).unwrap(),
+              zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
             };
 
             println!("Inserting: {:?}", add_liquidity);
@@ -291,9 +297,14 @@ impl Handler<FetchBurns> for EventFetchActor {
         for (i, event) in tx.events.iter().enumerate() {
           let name = event.name.as_str();
           if name == "Burnt" {
+
             let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
             let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+
+            let transfer_event = tx.events.iter().find(|&event| event.name.as_str() == "TransferSuccess").unwrap();
+            let token_amount = transfer_event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+            let zil_amount = tx.internal_transfers[0].get("amount").unwrap().as_str().expect("Malformed response!");
 
             let remove_liquidity = models::NewLiquidityChange {
               transaction_hash: &tx.hash,
@@ -303,6 +314,8 @@ impl Handler<FetchBurns> for EventFetchActor {
               initiator_address: address,
               token_address: pool,
               change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
+              token_amount: &BigDecimal::from_str(token_amount).unwrap(),
+              zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
             };
 
             println!("Inserting: {:?}", remove_liquidity);

@@ -6,11 +6,12 @@ SELECT
   swap_0.block_timestamp block_timestamp,
   swap_0.initiator_address initiator_address,
   swap_0.token_address token_address,
+
+  swap_0.token_amount token_amount,
+  swap_0.zil_amount zil_amount,
   
   'swap' tx_type,
   
-  swap_0.token_amount swap0_token_amount,
-  swap_0.zil_amount swap0_zil_amount,
   swap_0.is_sending_zil swap0_is_sending_zil,
 
   swap_1.token_address swap1_token_address,
@@ -33,17 +34,18 @@ ON
 UNION
 
 SELECT
-    id,
-    transaction_hash,
-    block_height,
-    block_timestamp,
-    initiator_address,
-    token_address,
+  id,
+  transaction_hash,
+  block_height,
+  block_timestamp,
+  initiator_address,
+  token_address,
+
+  token_amount,
+  zil_amount,
   
   'liquidity' tx_type,
   
-  NULL swap0_token_amount,
-  NULL swap0_zil_amount,
   NULL swap0_is_sending_zil,
 
   NULL swap1_token_address,
