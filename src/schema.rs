@@ -37,6 +37,29 @@ table! {
     }
 }
 
+table! {
+    pool_txs (id) {
+        id -> Uuid,
+        transaction_hash -> Varchar,
+        block_height -> Int4,
+        block_timestamp -> Timestamp,
+        initiator_address -> Varchar,
+        token_address -> Varchar,
+        tx_type -> Varchar,
+
+        swap0_token_amount -> Nullable<Numeric>,
+        swap0_zil_amount -> Nullable<Numeric>,
+        swap0_is_sending_zil -> Nullable<Bool>,
+
+        swap1_token_address -> Nullable<Varchar>,
+        swap1_token_amount -> Nullable<Numeric>,
+        swap1_zil_amount -> Nullable<Numeric>,
+        swap1_is_sending_zil -> Nullable<Bool>,
+
+        change_amount -> Nullable<Numeric>,
+    }
+}
+
 allow_tables_to_appear_in_same_query!(
     distributions,
     liquidity_changes,
