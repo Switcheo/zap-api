@@ -125,6 +125,26 @@ async fn get_volume(
   Ok(HttpResponse::Ok().json(volumes))
 }
 
+/// Get .
+#[get("/transactions")]
+async fn get_transactions(
+  query: web::Query<PeriodInfo>,
+  pagination: web::Query<PaginationInfo>,
+  filter: web::Query<AddressInfo>,
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let transactions = web::block(move || db::get_transactions(&conn, filter.address.as_ref(), filter.pool.as_ref(), query.from, query.until, pagination.per_page, pagination.page))
+      .await
+      .map_err(|e| {
+          eprintln!("load error {}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(transactions))
+}
+
 /// Get liquidity for all pools.
 #[get("/liquidity")]
 async fn get_liquidity(
@@ -507,6 +527,7 @@ async fn main() -> std::io::Result<()> {
       .service(get_pool_weights)
       .service(get_swaps)
       .service(get_volume)
+      .service(get_transactions)
       .service(get_liquidity_changes)
       .service(get_liquidity)
       .service(get_weighted_liquidity)

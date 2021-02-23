@@ -364,6 +364,45 @@ pub fn get_time_weighted_liquidity_by_address(
   Ok(query.load::<models::LiquidityFromProvider>(conn)?)
 }
 
+/// List LP transactions
+pub fn get_transactions(
+  conn: &PgConnection,
+  address: Option<&String>,
+  pool: Option<&String>,
+  start_timestamp: Option<i64>,
+  end_timestamp: Option<i64>,
+  per_page: Option<i64>,
+  page: Option<i64>,
+) -> Result<PaginatedResult<models::PoolTx>, diesel::result::Error> {
+  use crate::schema::pool_txs::dsl::*;
+
+  let mut query = pool_txs.into_boxed::<Pg>();
+
+  if let Some(pool) = pool {
+    query = query.filter(token_address.eq(pool));
+  }
+
+  if let Some(address) = address {
+    query = query.filter(initiator_address.eq(address));
+  }
+
+  // filter start time, inclusive
+  if let Some(start_timestamp) = start_timestamp {
+    query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+  }
+
+  // filter end time, exclusive
+  if let Some(end_timestamp) = end_timestamp {
+    query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+  }
+
+  Ok(query
+    .order(block_timestamp.desc())
+    .paginate(page)
+    .per_page(per_page)
+    .load_and_count_pages::<models::PoolTx>(conn)?)
+}
+
 /// Get the liquidity over time of all pools
 // let mut sql_for_graph = "
 //   WITH t AS (
