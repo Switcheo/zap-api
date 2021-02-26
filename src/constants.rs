@@ -15,16 +15,6 @@ pub enum Event {
   Swapped,
 }
 
-impl fmt::Display for Event {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    match *self {
-      Event::Minted => write!(f, "Mint"),
-      Event::Burnt => write!(f, "Burnt"),
-      Event::Swapped => write!(f, "Swapped"),
-    }
-  }
-}
-
 #[derive(Clone)]
 pub enum Network {
   MainNet,
@@ -77,6 +67,25 @@ impl Network {
     String::from(match *self {
       Network::TestNet => "zil1ua2dhnlykmxtnuaudmqd3uju6altn6lq0lqvl9",
       Network::MainNet => "zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6",
+    })
+  }
+
+  pub fn event_name(&self, event: &Event) -> String {
+    String::from(match *self {
+      Network::MainNet => {
+        match event {
+          Event::Minted => "Mint",
+          Event::Burnt => "Burnt",
+          Event::Swapped => "Swapped",
+        }
+      },
+      Network::TestNet => {
+        match event {
+          Event::Minted => "Mint",
+          Event::Burnt => "Burn",
+          Event::Swapped => "Swap",
+        }
+      },
     })
   }
 }
