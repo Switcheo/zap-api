@@ -304,7 +304,7 @@ impl Handler<FetchBurns> for EventFetchActor {
 
             let transfer_event = tx.events.iter().find(|&event| event.name.as_str() == "TransferSuccess").unwrap();
             let token_amount = transfer_event.params.get("amount").unwrap().as_str().expect("Malformed response!");
-            let zil_amount = tx.internal_transfers[0].get("amount").unwrap().as_str().expect("Malformed response!");
+            let zil_amount = tx.internal_transfers[0].get("value").unwrap().as_str().expect("Malformed response!");
 
             let remove_liquidity = models::NewLiquidityChange {
               transaction_hash: &tx.hash,
