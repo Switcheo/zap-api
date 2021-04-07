@@ -66,9 +66,11 @@ impl Network {
         (String::from("zil1ktmx2udqc77eqq0mdjn8kqdvwjf9q5zvy6x7vu"), 5), // ZWAP
       ].iter().cloned().collect(),
       Network::MainNet => [
-        (String::from("zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e"), 3), // gZIL
-        (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 2), // XSGD
-        (String::from("zil1p5suryq6q647usxczale29cu3336hhp376c627"), 5), // ZWAP
+        (String::from("zil1p5suryq6q647usxczale29cu3336hhp376c627"), 176), // ZWAP
+        (String::from("zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e"), 123), // gZIL
+        (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 123), // XSGD
+        (String::from("zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2"), 14), // PORT
+        (String::from("zil1l0g8u6f9g0fsvjuu74ctyla2hltefrdyt7k5f4"), 14), // ZLP
       ].iter().cloned().collect(),
     }
   }
