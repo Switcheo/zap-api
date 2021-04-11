@@ -72,7 +72,7 @@ impl Network {
         (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 123), // XSGD
         (String::from("zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2"), 14), // PORT
         (String::from("zil1l0g8u6f9g0fsvjuu74ctyla2hltefrdyt7k5f4"), 14), // ZLP
-        (String::from("zil1nr5ek93jmams8nqqcxhc8ux7g47rzhf63gcm4l"), 14), // REDC
+        (String::from("zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye"), 14), // REDC
       ].iter().cloned().collect(),
     }
   }
