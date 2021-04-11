@@ -64,6 +64,7 @@ impl Network {
         (String::from("zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5"), 3), // gZIL
         (String::from("zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv"), 2), // XSGD
         (String::from("zil1ktmx2udqc77eqq0mdjn8kqdvwjf9q5zvy6x7vu"), 5), // ZWAP
+        (String::from("zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye"), 1), // REDC
       ].iter().cloned().collect(),
       Network::MainNet => [
         (String::from("zil1p5suryq6q647usxczale29cu3336hhp376c627"), 176), // ZWAP
@@ -71,6 +72,7 @@ impl Network {
         (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 123), // XSGD
         (String::from("zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2"), 14), // PORT
         (String::from("zil1l0g8u6f9g0fsvjuu74ctyla2hltefrdyt7k5f4"), 14), // ZLP
+        (String::from("zil1nr5ek93jmams8nqqcxhc8ux7g47rzhf63gcm4l"), 14), // REDC
       ].iter().cloned().collect(),
     }
   }
