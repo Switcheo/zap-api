@@ -1,9 +1,8 @@
-
+use chrono::{NaiveDateTime, Utc};
+use diesel::dsl::{exists, sql};
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel::dsl::{sql, exists};
-use diesel::sql_types::{Text, Numeric, Timestamp};
-use chrono::{NaiveDateTime, Utc};
+use diesel::sql_types::{Numeric, Text, Timestamp};
 
 use crate::models;
 use crate::pagination::*;
@@ -31,11 +30,13 @@ pub fn get_swaps(
     query = query.filter(initiator_address.eq(address));
   }
 
-  Ok(query
-    .order(block_timestamp.desc())
-    .paginate(page)
-    .per_page(per_page)
-    .load_and_count_pages::<models::Swap>(conn)?)
+  Ok(
+    query
+      .order(block_timestamp.desc())
+      .paginate(page)
+      .per_page(per_page)
+      .load_and_count_pages::<models::Swap>(conn)?,
+  )
 }
 
 /// Get paginated liquidity changes.
@@ -58,11 +59,12 @@ pub fn get_liquidity_changes(
     query = query.filter(initiator_address.eq(address));
   }
 
-  Ok(query
-    .order(block_timestamp.desc())
-    .paginate(page)
-    .per_page(per_page)
-    .load_and_count_pages::<models::LiquidityChange>(conn)?
+  Ok(
+    query
+      .order(block_timestamp.desc())
+      .paginate(page)
+      .per_page(per_page)
+      .load_and_count_pages::<models::LiquidityChange>(conn)?,
   )
 }
 
@@ -84,9 +86,10 @@ pub fn get_distributions(
     query = query.filter(address_bech32.eq(address));
   }
 
-  Ok(query
-    .order(address_bech32.asc())
-    .load::<models::Distribution>(conn)?
+  Ok(
+    query
+      .order(address_bech32.asc())
+      .load::<models::Distribution>(conn)?,
   )
 }
 
@@ -105,14 +108,10 @@ pub fn get_distributions_by_address(
 }
 
 /// Get all pools.
-pub fn get_pools(
-  conn: &PgConnection,
-) -> Result<Vec<String>, diesel::result::Error> {
+pub fn get_pools(conn: &PgConnection) -> Result<Vec<String>, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
 
-  let query = liquidity_changes
-    .select(token_address)
-    .distinct();
+  let query = liquidity_changes.select(token_address).distinct();
 
   Ok(query.load(conn)?)
 }
@@ -129,7 +128,7 @@ pub fn get_liquidity(
     .group_by(token_address)
     .select((
       sql::<Text>("token_address AS pool"),
-      sql::<Numeric>("SUM(change_amount) AS amount")
+      sql::<Numeric>("SUM(change_amount) AS amount"),
     ))
     .into_boxed::<Pg>();
 
@@ -186,19 +185,18 @@ pub fn get_volume(
       query = query.filter(initiator_address.eq(address));
     }
 
-    // filter start time, inclusive
-    if let Some(start_timestamp) = start_timestamp {
-      query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
-    }
+  // filter start time, inclusive
+  if let Some(start_timestamp) = start_timestamp {
+    query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+  }
 
-    // filter end time, exclusive
-    if let Some(end_timestamp) = end_timestamp {
-      query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
-    }
+  // filter end time, exclusive
+  if let Some(end_timestamp) = end_timestamp {
+    query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+  }
 
-    Ok(query.load::<models::Volume>(conn)?)
+  Ok(query.load::<models::Volume>(conn)?)
 }
-
 
 /// Gets the swap volume for all pools over the given period in zil amounts by address.
 pub fn get_volume_by_address(
@@ -217,17 +215,17 @@ pub fn get_volume_by_address(
     ))
     .into_boxed::<Pg>();
 
-    // filter start time, inclusive
-    if let Some(start_timestamp) = start_timestamp {
-      query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
-    }
+  // filter start time, inclusive
+  if let Some(start_timestamp) = start_timestamp {
+    query = query.filter(block_timestamp.ge(NaiveDateTime::from_timestamp(start_timestamp, 0)))
+  }
 
-    // filter end time, exclusive
-    if let Some(end_timestamp) = end_timestamp {
-      query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
-    }
+  // filter end time, exclusive
+  if let Some(end_timestamp) = end_timestamp {
+    query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
+  }
 
-    Ok(query.load::<models::VolumeForUser>(conn)?)
+  Ok(query.load::<models::VolumeForUser>(conn)?)
 }
 
 /// Get time-weighted liquidity for all pools over a period filtered optionally by address.
@@ -239,7 +237,7 @@ pub fn get_time_weighted_liquidity(
 ) -> Result<Vec<models::Liquidity>, diesel::result::Error> {
   let address_fragment = match address {
     Some(_addr) => "AND initiator_address = $3", // bind later
-    None => "AND '1' = $3", // bind to noop
+    None => "AND '1' = $3",                      // bind to noop
   };
   let noop = String::from("1");
 
@@ -413,11 +411,13 @@ pub fn get_transactions(
     query = query.filter(block_timestamp.lt(NaiveDateTime::from_timestamp(end_timestamp, 0)))
   }
 
-  Ok(query
-    .order(block_timestamp.desc())
-    .paginate(page)
-    .per_page(per_page)
-    .load_and_count_pages::<models::PoolTx>(conn)?)
+  Ok(
+    query
+      .order(block_timestamp.desc())
+      .paginate(page)
+      .per_page(per_page)
+      .load_and_count_pages::<models::PoolTx>(conn)?,
+  )
 }
 
 /// Get the liquidity over time of all pools
@@ -467,9 +467,7 @@ pub fn insert_swap(
 ) -> Result<(), diesel::result::Error> {
   use crate::schema::swaps::dsl::*;
 
-  diesel::insert_into(swaps)
-    .values(&new_swap)
-    .execute(conn)?;
+  diesel::insert_into(swaps).values(&new_swap).execute(conn)?;
 
   Ok(())
 }
@@ -502,14 +500,10 @@ pub fn insert_distributions(
   Ok(())
 }
 
-pub fn swap_exists(
-  conn: &PgConnection,
-  hash: String,
-) -> Result<bool, diesel::result::Error> {
+pub fn swap_exists(conn: &PgConnection, hash: String) -> Result<bool, diesel::result::Error> {
   use crate::schema::swaps::dsl::*;
 
-  Ok(diesel::select(exists(swaps.filter(transaction_hash.eq(hash))))
-    .get_result(conn)?)
+  Ok(diesel::select(exists(swaps.filter(transaction_hash.eq(hash)))).get_result(conn)?)
 }
 
 pub fn liquidity_change_exists(
@@ -517,16 +511,11 @@ pub fn liquidity_change_exists(
   hash: String,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
-  Ok(diesel::select(exists(liquidity_changes.filter(transaction_hash.eq(hash))))
-    .get_result(conn)?)
+  Ok(diesel::select(exists(liquidity_changes.filter(transaction_hash.eq(hash)))).get_result(conn)?)
 }
 
-pub fn epoch_exists(
-  conn: &PgConnection,
-  epoch: i32,
-) -> Result<bool, diesel::result::Error> {
+pub fn epoch_exists(conn: &PgConnection, epoch: i32) -> Result<bool, diesel::result::Error> {
   use crate::schema::distributions::dsl::*;
 
-  Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch))))
-    .get_result(conn)?)
+  Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch)))).get_result(conn)?)
 }
