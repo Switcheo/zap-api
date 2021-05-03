@@ -145,3 +145,39 @@ pub struct NewDistribution {
   pub amount: BigDecimal,
   pub proof: String,
 }
+
+#[derive(Debug, Serialize)]
+pub struct Token {
+  pub name: String,
+  pub symbol: String,
+  pub address_bech32: String,
+  pub icon: String,
+  pub website: String,
+  pub decimals: u32,
+  pub init_supply: BigDecimal,
+  pub max_supply: BigDecimal,
+  pub total_supply: BigDecimal,
+  pub current_supply: BigDecimal,
+}
+
+#[derive(Debug, Serialize)]
+pub struct TokenPair {
+  pub ticker_id: String,
+  pub base: String,
+  pub target: String,
+}
+
+
+#[derive(Debug, Serialize)]
+pub struct TokenTicker {
+  pub ticker_id: String,
+  pub base_currency: String,
+  pub target_currency: String,
+  // pub last_price: BigDecimal,
+  pub base_volume: BigDecimal,
+  pub target_volume: BigDecimal,
+  // pub bid: BigDecimal,
+  // pub ask: BigDecimal,
+  // pub high: BigDecimal,
+  // pub low: BigDecimal,
+}

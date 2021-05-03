@@ -165,6 +165,7 @@ pub fn get_volume(
     ))
     .into_boxed::<Pg>();
 
+    // filter wallet address by initiator_address
     if let Some(address) = address {
       query = query.filter(initiator_address.eq(address));
     }

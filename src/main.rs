@@ -13,11 +13,12 @@ embed_migrations!();
 use actix::{Actor};
 use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
-use bigdecimal::{BigDecimal, Signed};
+use bigdecimal::{BigDecimal, Signed, Zero};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use hex::{encode};
 use serde::{Deserialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::{SystemTime};
 use std::str;
@@ -479,6 +480,114 @@ async fn get_distribution_data(
   Ok(HttpResponse::Ok().json(distributions))
 }
 
+/// Get token pairs (motivated by CoinGecko API)
+#[get("/pairs")]
+async fn get_token_pairs(
+
+) -> Result<HttpResponse, Error> {
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => {
+        let pairs: Vec<models::TokenPair> = tokens.iter().map(|token| {
+          models::TokenPair {
+            ticker_id: format!("{}_{}", token.symbol, "ZIL"),
+            base: token.symbol.clone(),
+            target: "ZIL".to_string(),
+          }
+        }).collect();
+        return Ok(HttpResponse::Ok().json(pairs));
+      },
+      None => Ok(HttpResponse::Ok().body("Tokens not loaded!"))
+    }
+  }
+}
+
+/// Get token tickers (motivated by CoinGecko API)
+#[get("/tickers")]
+async fn get_token_tickers(
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let volumes = web::block(move || db::get_volume(&conn, None, None, None))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  let empty_volume = models::Volume {
+    pool: "".to_string(),
+    in_zil_amount: BigDecimal::zero(),
+    out_token_amount: BigDecimal::zero(),
+    out_zil_amount: BigDecimal::zero(),
+    in_token_amount: BigDecimal::zero(),
+  };
+
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => {
+        let tickers: Vec<models::TokenTicker> = tokens.iter().map(|token| {
+          let volume = volumes.iter()
+            .find(|v| v.pool == token.address_bech32)
+            .unwrap_or(&empty_volume);
+          models::TokenTicker {
+            ticker_id: format!("{}_{}", token.symbol, "ZIL"),
+            base_currency: token.symbol.clone(),
+            target_currency: "ZIL".to_string(),
+            // last_price: 0.0,
+            base_volume: (&volume.in_token_amount + &volume.out_token_amount),
+            target_volume: (&volume.in_zil_amount + &volume.out_zil_amount),
+            // bid: 0.0,
+            // ask: 0.0,
+            // high: 0.0,
+            // low: 0.0,
+          }
+        }).collect();
+        return Ok(HttpResponse::Ok().json(tickers));
+      },
+      None => Ok(HttpResponse::Ok().body("Tokens not loaded!"))
+    }
+  }
+}
+
+static mut TOKENS: Option<Vec<models::Token>> = None;
+
+async fn reload_tokens() {
+  let url = reqwest::Url::parse("https://api.zilstream.com/tokens").expect("couldn't parse token api url");
+  let result = reqwest::get(url)
+    .await.expect("couldn't retrieve tokens")
+    .json::<Vec<responses::ZilStreamToken>>()
+    .await.expect("couldn't parse token result");
+  
+    let mut tokens = result.iter().map(|item| {
+      return models::Token {
+        name: item.name.clone(),
+        symbol: item.symbol.clone(),
+        address_bech32: item.address_bech32.clone(),
+        icon: item.icon.clone(),
+        website: item.website.clone(),
+        decimals: item.decimals,
+        init_supply: item.init_supply.clone(),
+        max_supply: item.max_supply.clone(),
+        total_supply: item.total_supply.clone(),
+        current_supply: item.current_supply.clone(),
+      }
+    }).collect::<Vec<models::Token>>();
+
+    tokens.sort_by(|lhs, rhs| {
+      // place ZWAP as the first token
+      if lhs.symbol == "ZWAP" { return Ordering::Less; }
+      if rhs.symbol == "ZWAP" { return Ordering::Greater; }
+      return lhs.symbol.cmp(&rhs.symbol);
+    });
+
+  unsafe {
+    TOKENS = Some(tokens);
+  }
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   std::env::set_var("RUST_LOG", "actix_web=info");
@@ -511,6 +620,9 @@ async fn main() -> std::io::Result<()> {
   let conn = pool.get().expect("couldn't get db connection from pool");
   embedded_migrations::run(&conn).expect("failed to run migrations.");
 
+  // reload tokens list
+  reload_tokens().await;
+
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   println!("Starting server at: {}", &bind);
   HttpServer::new(move || {
@@ -531,6 +643,9 @@ async fn main() -> std::io::Result<()> {
       .service(get_liquidity_changes)
       .service(get_liquidity)
       .service(get_weighted_liquidity)
+
+      .service(get_token_pairs)
+      .service(get_token_tickers)
   })
   .bind(bind)?
   .run()

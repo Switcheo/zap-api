@@ -1,3 +1,4 @@
+use bigdecimal::{BigDecimal};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
@@ -34,4 +35,18 @@ pub struct ViewBlockEvent {
   pub name: String,
   pub details: String,
   pub params: Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ZilStreamToken {
+  pub name: String,
+  pub symbol: String,
+  pub address_bech32: String,
+  pub icon: String,
+  pub website: String,
+  pub decimals: u32,
+  pub init_supply: BigDecimal,
+  pub max_supply: BigDecimal,
+  pub total_supply: BigDecimal,
+  pub current_supply: BigDecimal,
 }
