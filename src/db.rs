@@ -144,6 +144,22 @@ pub fn get_liquidity(
   Ok(query.load::<models::Liquidity>(conn)?)
 }
 
+/// Get pool reserves for all pools at current sync state.
+pub fn get_pool_reserve(
+  conn: &PgConnection,
+  pool: Option<&String>,
+) -> Result<Vec<models::PoolReserves>, diesel::result::Error> {
+  use crate::schema::pool_reserves::dsl::*;
+
+  let mut query = pool_reserves.into_boxed();
+
+  if let Some(pool) = pool {
+    query = query.filter(token_address.eq(pool));
+  }
+
+  Ok(query.load(conn)?)
+}
+
 /// Gets the swap volume for all pools over the given period in zil / token amounts.
 pub fn get_volume(
   conn: &PgConnection,

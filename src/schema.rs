@@ -64,6 +64,15 @@ table! {
     }
 }
 
+table! {
+    pool_reserves (token_address) {
+        token_address -> Varchar,
+
+        token_amount -> Numeric,
+        zil_amount -> Numeric,
+    }
+}
+
 allow_tables_to_appear_in_same_query!(
     distributions,
     liquidity_changes,

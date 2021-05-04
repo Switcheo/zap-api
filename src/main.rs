@@ -31,10 +31,12 @@ mod worker;
 mod responses;
 mod pagination;
 mod distribution;
+mod liquidity_pool;
 mod utils;
 
 use crate::constants::{Network};
 use crate::distribution::{Distribution, EpochInfo};
+use crate::liquidity_pool::{LiquidityPool};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -502,6 +504,55 @@ async fn get_token_pairs(
   }
 }
 
+fn get_tokens() -> Vec<models::Token> {
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => tokens.clone(),
+      None => Vec::new()
+    }
+  }
+}
+
+/// Get token pairs (motivated by CoinGecko API)
+#[get("/pairs/{base}_{quote}/rate")]
+async fn get_token_pair_rate(
+  pool: web::Data<DbPool>,
+  web::Path((base, quote)): web::Path<(String, String)>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let tokens = get_tokens();
+
+  let base_token = tokens.iter()
+    .find(|t| t.symbol == base)
+    .expect("Invalid base symbol")
+    .clone();
+  let quote_token = tokens.iter()
+    .find(|t| t.symbol == quote)
+    .expect("Invalid quote symbol")
+    .clone();
+
+  let base_pool_reserve = db::get_pool_reserve(&conn, Some(&base_token.address_bech32))
+    .map_err(|e| {
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
+    })?;
+  let quote_pool_reserve = db::get_pool_reserve(&conn, Some(&quote_token.address_bech32))
+    .map_err(|e| {
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
+    })?;
+  let base_pool = LiquidityPool::new(base_pool_reserve.first().unwrap());
+  let quote_pool = LiquidityPool::new(quote_pool_reserve.first().unwrap());
+
+  let (output, _) = base_pool.rate_exact_zil_for_token(BigDecimal::from(10000000000000 as u64));
+  
+  println!("{} {:?} {:?}", output, base_pool, quote_pool);
+
+  // Ok(HttpResponse::Ok().json(price))
+  Ok(HttpResponse::Ok().body("ok"))
+}
+
 /// Get token tickers (motivated by CoinGecko API)
 #[get("/tickers")]
 async fn get_token_tickers(
@@ -645,6 +696,7 @@ async fn main() -> std::io::Result<()> {
       .service(get_weighted_liquidity)
 
       .service(get_token_pairs)
+      .service(get_token_pair_rate)
       .service(get_token_tickers)
   })
   .bind(bind)?

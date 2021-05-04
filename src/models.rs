@@ -146,7 +146,14 @@ pub struct NewDistribution {
   pub proof: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Queryable, Serialize)]
+pub struct PoolReserves {
+  pub token_address: String,
+  pub token_amount: BigDecimal,
+  pub zil_amount: BigDecimal,
+}
+
+#[derive(Debug, Clone, Serialize)]
 pub struct Token {
   pub name: String,
   pub symbol: String,
