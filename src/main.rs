@@ -1,5 +1,3 @@
-
-
 //! Diesel does not support tokio, so we have to run it in separate threads using the web::block
 //! function which offloads blocking code (like Diesel's) in order to not block the server's thread.
 
@@ -10,30 +8,33 @@ extern crate diesel;
 extern crate diesel_migrations;
 embed_migrations!();
 
-use actix::{Actor};
-use actix_cors::{Cors};
+use actix::Actor;
+use actix_cors::Cors;
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
-use bigdecimal::{BigDecimal, Signed};
+use bigdecimal::{BigDecimal, Signed, Zero};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
 use hex::{encode};
 use serde::{Deserialize};
+use std::cmp::Ordering;
 use std::collections::HashMap;
-use std::time::{SystemTime};
 use std::str;
+use std::time::SystemTime;
 
-mod db;
 mod constants;
-mod models;
-mod schema;
-mod worker;
-mod responses;
-mod pagination;
+mod db;
 mod distribution;
+mod models;
+mod pagination;
+mod responses;
+mod schema;
+mod liquidity_pool;
 mod utils;
+mod worker;
 
-use crate::constants::{Network};
+use crate::constants::Network;
 use crate::distribution::{Distribution, EpochInfo};
+use crate::liquidity_pool::{LiquidityPool};
 
 type DbPool = r2d2::Pool<ConnectionManager<PgConnection>>;
 
@@ -63,27 +64,35 @@ struct PeriodInfo {
 /// Test endpoint.
 #[get("/")]
 async fn hello() -> impl Responder {
-    HttpResponse::Ok().body("Hello zap!")
+  HttpResponse::Ok().body("Hello zap!")
 }
 
 /// Gets swaps.
 #[get("/swaps")]
 async fn get_swaps(
-    query: web::Query<PaginationInfo>,
-    filter: web::Query<AddressInfo>,
-    pool: web::Data<DbPool>,
+  query: web::Query<PaginationInfo>,
+  filter: web::Query<AddressInfo>,
+  pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let conn = pool.get().expect("couldn't get db connection from pool");
+  let conn = pool.get().expect("couldn't get db connection from pool");
 
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let swaps = web::block(move || db::get_swaps(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref()))
-        .await
-        .map_err(|e| {
-            eprintln!("{}", e);
-            HttpResponse::InternalServerError().finish()
-        })?;
+  // use web::block to offload blocking Diesel code without blocking server thread
+  let swaps = web::block(move || {
+    db::get_swaps(
+      &conn,
+      query.per_page,
+      query.page,
+      filter.pool.as_ref(),
+      filter.address.as_ref(),
+    )
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
-    Ok(HttpResponse::Ok().json(swaps))
+  Ok(HttpResponse::Ok().json(swaps))
 }
 
 /// Get liquidity changes.
@@ -96,12 +105,20 @@ async fn get_liquidity_changes(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity_changes = web::block(move || db::get_liquidity_changes(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let liquidity_changes = web::block(move || {
+    db::get_liquidity_changes(
+      &conn,
+      query.per_page,
+      query.page,
+      filter.pool.as_ref(),
+      filter.address.as_ref(),
+    )
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(liquidity_changes))
 }
@@ -115,11 +132,12 @@ async fn get_volume(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let volumes = web::block(move || db::get_volume(&conn, filter.address.as_ref(), query.from, query.until))
+  let volumes =
+    web::block(move || db::get_volume(&conn, filter.address.as_ref(), query.from, query.until))
       .await
       .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
       })?;
 
   Ok(HttpResponse::Ok().json(volumes))
@@ -135,12 +153,22 @@ async fn get_transactions(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let transactions = web::block(move || db::get_transactions(&conn, filter.address.as_ref(), filter.pool.as_ref(), query.from, query.until, pagination.per_page, pagination.page))
-      .await
-      .map_err(|e| {
-          eprintln!("load error {}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let transactions = web::block(move || {
+    db::get_transactions(
+      &conn,
+      filter.address.as_ref(),
+      filter.pool.as_ref(),
+      query.from,
+      query.until,
+      pagination.per_page,
+      pagination.page,
+    )
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("load error {}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(transactions))
 }
@@ -155,11 +183,12 @@ async fn get_liquidity(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_liquidity(&conn, query.timestamp, filter.address.as_ref()))
+  let liquidity =
+    web::block(move || db::get_liquidity(&conn, query.timestamp, filter.address.as_ref()))
       .await
       .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
       })?;
 
   Ok(HttpResponse::Ok().json(liquidity))
@@ -175,12 +204,14 @@ async fn get_weighted_liquidity(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_ref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let liquidity = web::block(move || {
+    db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_ref())
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(liquidity))
 }
@@ -226,11 +257,11 @@ async fn generate_epoch(
       .as_secs() as i64;
 
     if current_time < end.unwrap() {
-      return Ok(String::from("Epoch not yet over!"))
+      return Ok(String::from("Epoch not yet over!"));
     }
 
     if db::epoch_exists(&conn, epoch_number)? {
-      return Ok(String::from("Epoch already generated!"))
+      return Ok(String::from("Epoch already generated!"));
     }
 
     // get pool TWAL and individual TWAL
@@ -239,33 +270,48 @@ async fn generate_epoch(
       weighted_liquidity: BigDecimal,
     }
     let pt = epoch_info.tokens_for_liquidity_providers();
-    let distribution: HashMap<String, PoolDistribution> =
-      if epoch_info.is_initial() {
-        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
-        db::get_pools(&conn)?.into_iter().map(|pool| {
-          (pool,
-            PoolDistribution{ // share distribution fully
+    let distribution: HashMap<String, PoolDistribution> = if epoch_info.is_initial() {
+      let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?
+        .into_iter()
+        .map(|i| i.amount)
+        .sum();
+      db::get_pools(&conn)?
+        .into_iter()
+        .map(|pool| {
+          (
+            pool,
+            PoolDistribution {
+              // share distribution fully
               tokens: utils::round_down(pt.clone(), 0),
               weighted_liquidity: total_liquidity.clone(),
-            }
+            },
           )
-        }).collect()
-      } else {
-        let pool_weights = network.incentived_pools();
-        let total_weight: u32 = pool_weights.values().into_iter().sum();
-        db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
+        })
+        .collect()
+    } else {
+      let pool_weights = network.incentived_pools();
+      let total_weight: u32 = pool_weights.values().into_iter().sum();
+      db::get_time_weighted_liquidity(&conn, start, end, None)?
+        .into_iter()
+        .filter_map(|i| {
           if let Some(weight) = pool_weights.get(&i.pool) {
-            Some((i.pool,
-              PoolDistribution{ // each pool has a weighted allocation
-                tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
+            Some((
+              i.pool,
+              PoolDistribution {
+                // each pool has a weighted allocation
+                tokens: utils::round_down(
+                  pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight),
+                  0,
+                ),
                 weighted_liquidity: i.amount,
-              }
+              },
             ))
           } else {
             None
           }
-        }).collect()
-      };
+        })
+        .collect()
+    };
 
     let mut accumulator: HashMap<String, BigDecimal> = HashMap::new();
 
@@ -274,8 +320,13 @@ async fn generate_epoch(
       let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
       for l in user_liquidity.into_iter() {
         if let Some(pool) = distribution.get(&l.pool) {
-          let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
-          let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
+          let share = utils::round_down(
+            l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(),
+            0,
+          );
+          let current = accumulator
+            .entry(l.address)
+            .or_insert(BigDecimal::default());
           *current += share
         }
       }
@@ -284,11 +335,16 @@ async fn generate_epoch(
     // if initial epoch, add distr for swap volumes
     let tt = epoch_info.tokens_for_traders();
     if tt.is_positive() {
-      let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?.into_iter().map(|v| v.in_zil_amount + v.out_zil_amount).sum();
+      let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?
+        .into_iter()
+        .map(|v| v.in_zil_amount + v.out_zil_amount)
+        .sum();
       let user_volume = db::get_volume_by_address(&conn, start, end)?;
       for v in user_volume.into_iter() {
         let share = utils::round_down(tt.clone() * v.amount.clone() / total_volume.clone(), 0);
-        let current = accumulator.entry(v.address).or_insert(BigDecimal::default());
+        let current = accumulator
+          .entry(v.address)
+          .or_insert(BigDecimal::default());
         *current += share
       }
     }
@@ -296,42 +352,52 @@ async fn generate_epoch(
     // add developer share
     let dt = epoch_info.tokens_for_developers();
     if dt.is_positive() && !epoch_info.trader_epoch() {
-      let current = accumulator.entry(network.developer_address()).or_insert(BigDecimal::default());
+      let current = accumulator
+        .entry(network.developer_address())
+        .or_insert(BigDecimal::default());
       *current += dt
     }
 
-    let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
+    let total_distributed = accumulator
+      .values()
+      .fold(BigDecimal::default(), |acc, x| acc + x);
     if total_distributed > epoch_info.tokens_for_epoch() {
-      panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
+      panic!(
+        "Total distributed tokens > target tokens for epoch: {} > {}",
+        total_distributed,
+        epoch_info.tokens_for_epoch()
+      )
     }
 
     let leaves = Distribution::from(accumulator);
     let tree = distribution::construct_merkle_tree(leaves);
     let proofs = distribution::get_proofs(tree.clone());
-    let records: Vec<models::NewDistribution> = proofs.into_iter().map(|(d, p)| {
-      models::NewDistribution{
+    let records: Vec<models::NewDistribution> = proofs
+      .into_iter()
+      .map(|(d, p)| models::NewDistribution {
         epoch_number,
         address_bech32: d.address(),
         address_hex: encode(d.address_bytes()),
         amount: d.amount(),
         proof: p,
-      }
-    }).collect();
+      })
+      .collect();
 
     if db::epoch_exists(&conn, epoch_number)? {
-      return Ok(String::from("Epoch already generated!"))
+      return Ok(String::from("Epoch already generated!"));
     }
 
     for r in records.chunks(10000).into_iter() {
       db::insert_distributions(r.to_vec(), &conn).expect("Failed to insert distributions!");
-    };
+    }
 
     Ok::<String, diesel::result::Error>(encode(tree.root().data().clone().1))
-  }).await
-    .map_err(|e| {
-      eprintln!("{}", e);
-      HttpResponse::InternalServerError().finish()
-    })?;
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(result))
 }
@@ -339,25 +405,25 @@ async fn generate_epoch(
 /// Gets distribution pool weights.
 #[get("/distribution/pool_weights")]
 async fn get_pool_weights(
-    pool: web::Data<DbPool>,
-    network: web::Data<Network>,
+  pool: web::Data<DbPool>,
+  network: web::Data<Network>,
 ) -> Result<HttpResponse, Error> {
-    let conn = pool.get().expect("couldn't get db connection from pool");
+  let conn = pool.get().expect("couldn't get db connection from pool");
 
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let pools = web::block(move || db::get_pools(&conn))
-        .await
-        .map_err(|e| {
-            eprintln!("{}", e);
-            HttpResponse::InternalServerError().finish()
-        })?;
+  // use web::block to offload blocking Diesel code without blocking server thread
+  let pools = web::block(move || db::get_pools(&conn))
+    .await
+    .map_err(|e| {
+      eprintln!("{}", e);
+      HttpResponse::InternalServerError().finish()
+    })?;
 
-    let mut result: HashMap<String, u32> = pools.into_iter().map(|x| (x, 0)).collect();
-    for (key, value) in network.incentived_pools().into_iter() {
-      result.insert(key, value);
-    }
+  let mut result: HashMap<String, u32> = pools.into_iter().map(|x| (x, 0)).collect();
+  for (key, value) in network.incentived_pools().into_iter() {
+    result.insert(key, value);
+  }
 
-    Ok(HttpResponse::Ok().json(result))
+  Ok(HttpResponse::Ok().json(result))
 }
 
 /// Get distribution data for the given address
@@ -388,39 +454,57 @@ async fn get_current_distribution(
       weighted_liquidity: BigDecimal,
     }
     let pt = epoch_info.tokens_for_liquidity_providers();
-    let distribution: HashMap<String, PoolDistribution> =
-      if epoch_info.is_initial() {
-        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
-        db::get_pools(&conn)?.into_iter().map(|pool| {
-          (pool,
-            PoolDistribution{ // share distribution fully
+    let distribution: HashMap<String, PoolDistribution> = if epoch_info.is_initial() {
+      let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?
+        .into_iter()
+        .map(|i| i.amount)
+        .sum();
+      db::get_pools(&conn)?
+        .into_iter()
+        .map(|pool| {
+          (
+            pool,
+            PoolDistribution {
+              // share distribution fully
               tokens: utils::round_down(pt.clone(), 0),
               weighted_liquidity: total_liquidity.clone(),
-            }
+            },
           )
-        }).collect()
-      } else {
-        let pool_weights = network.incentived_pools();
-        let total_weight: u32 = pool_weights.values().into_iter().sum();
-        db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
+        })
+        .collect()
+    } else {
+      let pool_weights = network.incentived_pools();
+      let total_weight: u32 = pool_weights.values().into_iter().sum();
+      db::get_time_weighted_liquidity(&conn, start, end, None)?
+        .into_iter()
+        .filter_map(|i| {
           if let Some(weight) = pool_weights.get(&i.pool) {
-            Some((i.pool,
-              PoolDistribution{ // each pool has a weighted allocation
-                tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
+            Some((
+              i.pool,
+              PoolDistribution {
+                // each pool has a weighted allocation
+                tokens: utils::round_down(
+                  pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight),
+                  0,
+                ),
                 weighted_liquidity: i.amount,
-              }
+              },
             ))
           } else {
             None
           }
-        }).collect()
-      };
+        })
+        .collect()
+    };
 
     // for each individual TWAL, calculate the tokens
     let user_liquidity = db::get_time_weighted_liquidity(&conn, start, end, Some(&address))?;
     for l in user_liquidity.into_iter() {
       if let Some(pool) = distribution.get(&l.pool) {
-        let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+        let share = utils::round_down(
+          l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(),
+          0,
+        );
         let current = accumulator.entry(l.pool).or_insert(BigDecimal::default());
         *current += share
       }
@@ -428,16 +512,19 @@ async fn get_current_distribution(
 
     // add developer share
     if network.developer_address() == address {
-      let current = accumulator.entry("developer".to_string()).or_insert(BigDecimal::default());
+      let current = accumulator
+        .entry("developer".to_string())
+        .or_insert(BigDecimal::default());
       *current += epoch_info.tokens_for_developers()
     }
 
     Ok::<HashMap<String, BigDecimal>, diesel::result::Error>(accumulator)
-  }).await
-    .map_err(|e| {
-      eprintln!("{}", e);
-      HttpResponse::InternalServerError().finish()
-    })?;
+  })
+  .await
+  .map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(result))
 }
@@ -451,11 +538,12 @@ async fn get_epoch_data(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let distributions = web::block(move || db::get_distributions(&conn, Some(epoch_number), filter.address.as_ref()))
+  let distributions =
+    web::block(move || db::get_distributions(&conn, Some(epoch_number), filter.address.as_ref()))
       .await
       .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
       })?;
 
   Ok(HttpResponse::Ok().json(distributions))
@@ -470,13 +558,187 @@ async fn get_distribution_data(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   let distributions = web::block(move || db::get_distributions_by_address(&conn, &address))
+    .await
+    .map_err(|e| {
+      eprintln!("{}", e);
+      HttpResponse::InternalServerError().finish()
+    })?;
+
+  Ok(HttpResponse::Ok().json(distributions))
+}
+
+/// Get token pairs (motivated by CoinGecko API)
+#[get("/pairs")]
+async fn get_token_pairs(
+
+) -> Result<HttpResponse, Error> {
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => {
+        let pairs: Vec<models::TokenPair> = tokens.iter().map(|token| {
+          models::TokenPair {
+            ticker_id: format!("{}_{}", token.symbol, "ZIL"),
+            base: token.symbol.clone(),
+            target: "ZIL".to_string(),
+          }
+        }).collect();
+        return Ok(HttpResponse::Ok().json(pairs));
+      },
+      None => Ok(HttpResponse::Ok().body("Tokens not loaded!"))
+    }
+  }
+}
+
+fn get_tokens() -> Vec<models::Token> {
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => tokens.clone(),
+      None => Vec::new()
+    }
+  }
+}
+
+/// Get token pairs (motivated by CoinGecko API)
+#[get("/pairs/{base}_{quote}/rate")]
+async fn get_token_pair_rate(
+  pool: web::Data<DbPool>,
+  web::Path((base, quote)): web::Path<(String, String)>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let tokens = get_tokens();
+
+  let base_token = tokens.iter()
+    .find(|t| t.symbol == base)
+    .expect("Invalid base symbol")
+    .clone();
+  let quote_token = tokens.iter()
+    .find(|t| t.symbol == quote)
+    .expect("Invalid quote symbol")
+    .clone();
+
+  let base_pool_reserve = db::get_pool_reserve(&conn, Some(&base_token.address_bech32))
+    .map_err(|e| {
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
+    })?;
+  let quote_pool_reserve = db::get_pool_reserve(&conn, Some(&quote_token.address_bech32))
+    .map_err(|e| {
+        eprintln!("{}", e);
+        HttpResponse::InternalServerError().finish()
+    })?;
+  let base_pool = LiquidityPool::new(base_pool_reserve.first().unwrap());
+  let quote_pool = LiquidityPool::new(quote_pool_reserve.first().unwrap());
+
+  let (output, _) = base_pool.rate_exact_zil_for_token(BigDecimal::from(10000000000000 as u64));
+  
+  println!("{} {:?} {:?}", output, base_pool, quote_pool);
+
+  // Ok(HttpResponse::Ok().json(price))
+  Ok(HttpResponse::Ok().body("ok"))
+}
+
+/// Get token tickers (motivated by CoinGecko API)
+#[get("/tickers")]
+async fn get_token_tickers(
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let volumes = web::block(move || db::get_volume(&conn, None, None, None))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
           HttpResponse::InternalServerError().finish()
       })?;
 
-  Ok(HttpResponse::Ok().json(distributions))
+  let empty_volume = models::Volume {
+    pool: "".to_string(),
+    in_zil_amount: BigDecimal::zero(),
+    out_token_amount: BigDecimal::zero(),
+    out_zil_amount: BigDecimal::zero(),
+    in_token_amount: BigDecimal::zero(),
+  };
+
+  let conn1 = pool.get().expect("couldn't get db connection from pool");
+
+  unsafe {
+    match &TOKENS {
+      Some(tokens) => {
+        let tickers: Vec<models::TokenTicker> = tokens.iter().map(|token| {
+          let volume = volumes.iter()
+            .find(|v| v.pool == token.address_bech32)
+            .unwrap_or(&empty_volume);
+          let base_pool_reserve = db::get_pool_reserve(&conn1, Some(&token.address_bech32))
+            .map_err(|e| {
+              eprintln!("{}", e);
+              HttpResponse::InternalServerError().finish()
+          }).unwrap_or_default();
+          let mut pool_bid = BigDecimal::from(0 as u64);
+          let mut pool_ask = BigDecimal::from(0 as u64);
+          if(base_pool_reserve.is_empty()) {} else {
+            let base_pool = LiquidityPool::new(base_pool_reserve.first().unwrap());
+            let (bid, _) = base_pool.rate_exact_zil_for_token(BigDecimal::from(10000000000000000 as u64));
+            let (ask, _) = base_pool.rate_zil_for_exact_token(BigDecimal::from(10000000000000000 as u64));
+            pool_bid = bid / BigDecimal::from(10000000000000000 as u64);
+            pool_ask = ask / BigDecimal::from(10000000000000000 as u64);
+          }
+          println!("{}, {}, {}", token.symbol, pool_bid, pool_ask);
+          models::TokenTicker {
+            ticker_id: format!("{}_{}", token.symbol, "ZIL"),
+            base_currency: token.symbol.clone(),
+            target_currency: "ZIL".to_string(),
+            // last_price: 0.0,
+            base_volume: (&volume.in_token_amount + &volume.out_token_amount),
+            target_volume: (&volume.in_zil_amount + &volume.out_zil_amount),
+            bid: pool_bid,
+            ask: pool_ask,
+            // high: 0.0,
+            // low: 0.0,
+          }
+        }).collect();
+        return Ok(HttpResponse::Ok().json(tickers));
+      },
+      None => Ok(HttpResponse::Ok().body("Tokens not loaded!"))
+    }
+  }
+}
+
+static mut TOKENS: Option<Vec<models::Token>> = None;
+
+async fn reload_tokens() {
+  let url = reqwest::Url::parse("https://api.zilstream.com/tokens").expect("couldn't parse token api url");
+  let result = reqwest::get(url)
+    .await.expect("couldn't retrieve tokens")
+    .json::<Vec<responses::ZilStreamToken>>()
+    .await.expect("couldn't parse token result");
+  
+    let mut tokens = result.iter().map(|item| {
+      return models::Token {
+        name: item.name.clone(),
+        symbol: item.symbol.clone(),
+        address_bech32: item.address_bech32.clone(),
+        icon: item.icon.clone(),
+        website: item.website.clone(),
+        decimals: item.decimals,
+        init_supply: item.init_supply.clone(),
+        max_supply: item.max_supply.clone(),
+        total_supply: item.total_supply.clone(),
+        current_supply: item.current_supply.clone(),
+      }
+    }).collect::<Vec<models::Token>>();
+
+    tokens.sort_by(|lhs, rhs| {
+      // place ZWAP as the first token
+      if lhs.symbol == "ZWAP" { return Ordering::Less; }
+      if rhs.symbol == "ZWAP" { return Ordering::Greater; }
+      return lhs.symbol.cmp(&rhs.symbol);
+    });
+
+  unsafe {
+    TOKENS = Some(tokens);
+  }
 }
 
 #[actix_web::main]
@@ -490,15 +752,15 @@ async fn main() -> std::io::Result<()> {
   let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL env var missing.");
   let manager = ConnectionManager::<PgConnection>::new(connspec);
   let pool = r2d2::Pool::builder()
-      .build(manager)
-      .expect("Failed to create db pool.");
+    .build(manager)
+    .expect("Failed to create db pool.");
 
   // get network
   let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
   let network = match network_str.as_str() {
     "testnet" => Network::TestNet,
     "mainnet" => Network::MainNet,
-    _ => panic!("Invalid network string")
+    _ => panic!("Invalid network string"),
   };
 
   // run worker
@@ -510,6 +772,9 @@ async fn main() -> std::io::Result<()> {
   // run migrations
   let conn = pool.get().expect("couldn't get db connection from pool");
   embedded_migrations::run(&conn).expect("failed to run migrations.");
+
+  // reload tokens list
+  reload_tokens().await;
 
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   println!("Starting server at: {}", &bind);
@@ -531,6 +796,10 @@ async fn main() -> std::io::Result<()> {
       .service(get_liquidity_changes)
       .service(get_liquidity)
       .service(get_weighted_liquidity)
+
+      .service(get_token_pairs)
+      .service(get_token_pair_rate)
+      .service(get_token_tickers)
   })
   .bind(bind)?
   .run()

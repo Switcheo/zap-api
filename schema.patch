@@ -1,8 +1,8 @@
 diff --git a/src/schema.rs b/src/schema.rs
-index 9ca268e..3f2ae98 100644
+index 85dd17c..241623a 100644
 --- a/src/schema.rs
 +++ b/src/schema.rs
-@@ -34,11 +34,36 @@ table! {
+@@ -36,11 +36,45 @@ table! {
          token_amount -> Numeric,
          zil_amount -> Numeric,
          is_sending_zil -> Bool,
@@ -31,6 +31,15 @@ index 9ca268e..3f2ae98 100644
 +        swap1_is_sending_zil -> Nullable<Bool>,
 +
 +        change_amount -> Nullable<Numeric>,
++    }
++}
++
++table! {
++    pool_reserves (token_address) {
++        token_address -> Varchar,
++
++        token_amount -> Numeric,
++        zil_amount -> Numeric,
 +    }
 +}
 +
