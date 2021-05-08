@@ -661,6 +661,8 @@ async fn get_token_tickers(
     in_token_amount: BigDecimal::zero(),
   };
 
+  let conn1 = pool.get().expect("couldn't get db connection from pool");
+
   unsafe {
     match &TOKENS {
       Some(tokens) => {
@@ -668,6 +670,21 @@ async fn get_token_tickers(
           let volume = volumes.iter()
             .find(|v| v.pool == token.address_bech32)
             .unwrap_or(&empty_volume);
+          let base_pool_reserve = db::get_pool_reserve(&conn1, Some(&token.address_bech32))
+            .map_err(|e| {
+              eprintln!("{}", e);
+              HttpResponse::InternalServerError().finish()
+          }).unwrap_or_default();
+          let mut pool_bid = BigDecimal::from(0 as u64);
+          let mut pool_ask = BigDecimal::from(0 as u64);
+          if(base_pool_reserve.is_empty()) {} else {
+            let base_pool = LiquidityPool::new(base_pool_reserve.first().unwrap());
+            let (bid, _) = base_pool.rate_exact_zil_for_token(BigDecimal::from(10000000000000000 as u64));
+            let (ask, _) = base_pool.rate_zil_for_exact_token(BigDecimal::from(10000000000000000 as u64));
+            pool_bid = bid / BigDecimal::from(10000000000000000 as u64);
+            pool_ask = ask / BigDecimal::from(10000000000000000 as u64);
+          }
+          println!("{}, {}, {}", token.symbol, pool_bid, pool_ask);
           models::TokenTicker {
             ticker_id: format!("{}_{}", token.symbol, "ZIL"),
             base_currency: token.symbol.clone(),
@@ -675,8 +692,8 @@ async fn get_token_tickers(
             // last_price: 0.0,
             base_volume: (&volume.in_token_amount + &volume.out_token_amount),
             target_volume: (&volume.in_zil_amount + &volume.out_zil_amount),
-            // bid: 0.0,
-            // ask: 0.0,
+            bid: pool_bid,
+            ask: pool_ask,
             // high: 0.0,
             // low: 0.0,
           }

@@ -12,10 +12,10 @@ pub enum TradeDirection {
 
 #[derive(Debug)]
 pub struct LiquidityPool {
-  token_address: String,
-  zil_reserve: BigDecimal,
-  token_reserve: BigDecimal,
-  fee_rate: BigDecimal,
+  pub token_address: String,
+  pub zil_reserve: BigDecimal,
+  pub token_reserve: BigDecimal,
+  pub fee_rate: BigDecimal,
 }
 
 impl LiquidityPool {

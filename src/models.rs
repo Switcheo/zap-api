@@ -181,8 +181,8 @@ pub struct TokenTicker {
   // pub last_price: BigDecimal,
   pub base_volume: BigDecimal,
   pub target_volume: BigDecimal,
-  // pub bid: BigDecimal,
-  // pub ask: BigDecimal,
+  pub bid: BigDecimal,
+  pub ask: BigDecimal,
   // pub high: BigDecimal,
   // pub low: BigDecimal,
 }
