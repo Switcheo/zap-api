@@ -374,7 +374,8 @@ impl Handler<FetchSwaps> for EventFetchActor {
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
             let input_amount = event.params.pointer("/input/0/params/0").unwrap().as_str().expect("Malformed response!");
             let output_amount = event.params.pointer("/output/0/params/0").unwrap().as_str().expect("Malformed response!");
-            let input_denom = event.params.pointer("/input/1/name").unwrap().as_str().expect("Malformed response!");
+            let input_name = event.params.pointer("/input/1/name").unwrap().as_str().expect("Malformed response!");
+            let input_denom = input_name.split(".").last().expect("Malformed response!");
 
             let token_amount;
             let zil_amount;
