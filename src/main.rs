@@ -519,6 +519,7 @@ async fn main() -> std::io::Result<()> {
       .data(network.clone())
       .wrap(Cors::default()
         .max_age(Some(3600))
+        .expose_any_header()
         .allow_any_header()
         .allow_any_method()
         .allow_any_origin()
