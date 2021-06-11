@@ -13,6 +13,7 @@ use std::str::FromStr;
 use crate::db;
 use crate::models;
 use crate::responses;
+use crate::utils;
 use crate::constants::{Event, Network};
 
 pub struct Coordinator{
@@ -138,12 +139,7 @@ struct EventFetchActor {
 impl EventFetchActor {
   fn new(db_pool: Pool<ConnectionManager<PgConnection>>, coordinator: Addr<Coordinator>) -> Self {
     let api_key = std::env::var("VIEWBLOCK_API_KEY").expect("VIEWBLOCK_API_KEY env var missing.");
-    let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
-    let network = match network_str.as_str() {
-      "testnet" => Network::TestNet,
-      "mainnet" => Network::MainNet,
-      _ => panic!("Invalid network string")
-    };
+    let network = utils::get_network();
     let contract_hash = network.contract_hash();
     let mut headers = HeaderMap::new();
     headers.insert(
@@ -166,13 +162,16 @@ impl EventFetchActor {
   }
 
   fn get_and_parse(&mut self, page_number: u16, event: Event) -> Result<responses::ViewBlockResponse, FetchError> {
-    println!("Fetching {} page {}", event, page_number);
+    let network = utils::get_network();
+    let event_name = network.event_name(&event);
+
+    println!("Fetching {} page {}", event_name, page_number);
 
     let url = Url::parse_with_params(
       format!(
         "https://api.viewblock.io/v1/zilliqa/contracts/{}/events/{}",
         self.contract_hash,
-        event
+        event_name
       )
       .as_str(),
       &[
@@ -184,7 +183,7 @@ impl EventFetchActor {
     let resp = self.client.get(url).send()?;
     let body = resp.text()?;
 
-    println!("Parsing {} page {}", event, page_number);
+    println!("Parsing {} page {}", event_name, page_number);
     // println!("{}", body);
     let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
     return Ok(result)
@@ -214,6 +213,7 @@ impl Handler<FetchMints> for EventFetchActor {
 
   fn handle(&mut self, msg: FetchMints, _ctx: &mut SyncContext<Self>) -> Self::Result {
     let mut execute = || -> FetchResult {
+      return Ok(NextFetch{event: Event::Minted, page_number: 1, delay: 60000 });
       let result = self.get_and_parse(msg.page_number, Event::Minted)?;
 
       if result.txs.len() == 0 {
@@ -221,10 +221,13 @@ impl Handler<FetchMints> for EventFetchActor {
         return Ok(NextFetch{event: Event::Minted, page_number: 1, delay: 60 });
       }
 
+      let network = utils::get_network();
+      let event_name = network.event_name(&Event::Minted);
+
       for tx in result.txs {
         for (i, event) in tx.events.iter().enumerate() {
           let name = event.name.as_str();
-          if name == "Mint" {
+          if name == event_name {
             let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
             let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
@@ -293,10 +296,13 @@ impl Handler<FetchBurns> for EventFetchActor {
         return Ok(NextFetch{event: Event::Burnt, page_number: 1, delay: 60 });
       }
 
+      let network = utils::get_network();
+      let event_name = network.event_name(&Event::Burnt);
+
       for tx in result.txs {
         for (i, event) in tx.events.iter().enumerate() {
           let name = event.name.as_str();
-          if name == "Burnt" {
+          if name == event_name {
 
             let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
@@ -361,15 +367,20 @@ impl Handler<FetchSwaps> for EventFetchActor {
     let mut execute = || -> FetchResult {
       let result = self.get_and_parse(msg.page_number, Event::Swapped)?;
 
+      return Ok(NextFetch{event: Event::Swapped, page_number: 1, delay: 60000 });
+
       if result.txs.len() == 0 {
         println!("Done with swaps.");
         return Ok(NextFetch{event: Event::Swapped, page_number: 1, delay: 60 });
       }
 
+      let network = utils::get_network();
+      let event_name = network.event_name(&Event::Swapped);
+
       for tx in result.txs {
         for (i, event) in tx.events.iter().enumerate() {
           let name = event.name.as_str();
-          if name == "Swapped" {
+          if name == event_name {
             let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
             let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
             let input_amount = event.params.pointer("/input/0/params/0").unwrap().as_str().expect("Malformed response!");
