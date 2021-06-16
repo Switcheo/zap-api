@@ -500,6 +500,9 @@ async fn main() -> std::io::Result<()> {
     "mainnet" => Network::MainNet,
     _ => panic!("Invalid network string")
   };
+  
+  // get number of threads to run
+  let threads_str = std::env::var("SERVER_THREADS").unwrap_or(String::from(""));
 
   // run worker
   let run_worker = std::env::var("RUN_WORKER").unwrap_or(String::from("false"));
@@ -512,8 +515,7 @@ async fn main() -> std::io::Result<()> {
   embedded_migrations::run(&conn).expect("failed to run migrations.");
 
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
-  println!("Starting server at: {}", &bind);
-  HttpServer::new(move || {
+  let mut server = HttpServer::new(move || {
     App::new()
       .data(pool.clone())
       .data(network.clone())
@@ -537,8 +539,17 @@ async fn main() -> std::io::Result<()> {
       .service(get_liquidity_changes)
       .service(get_liquidity)
       .service(get_weighted_liquidity)
-  })
-  .bind(bind)?
-  .run()
-  .await
+  });
+  
+  if let Ok(threads) = threads_str.parse::<usize>() {
+    println!("running server with {} threads", threads);
+    server = server.workers(threads);
+  } else {
+    println!("running server with default threads");
+  }
+  println!("Starting server at: {}", &bind);
+
+  server.bind(bind)?
+    .run()
+    .await
 }
