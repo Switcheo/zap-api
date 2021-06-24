@@ -15,6 +15,7 @@ pub fn get_swaps(
   page: Option<i64>,
   pool: Option<&String>,
   address: Option<&String>,
+  is_incoming: Option<&bool>,
 ) -> Result<PaginatedResult<models::Swap>, diesel::result::Error> {
   // It is common when using Diesel with Actix web to import schema-related
   // modules inside a function's scope (rather than the normal module's scope)
@@ -29,6 +30,10 @@ pub fn get_swaps(
 
   if let Some(address) = address {
     query = query.filter(initiator_address.eq(address));
+  }
+
+  if let Some(is_incoming) = is_incoming {
+    query = query.filter(is_sending_zil.eq(is_incoming))
   }
 
   Ok(query

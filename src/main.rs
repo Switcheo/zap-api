@@ -50,6 +50,13 @@ struct AddressInfo {
 }
 
 #[derive(Deserialize)]
+struct SwapInfo {
+  pool: Option<String>,
+  address: Option<String>,
+  is_incoming: Option<bool>,
+}
+
+#[derive(Deserialize)]
 struct TimeInfo {
   timestamp: Option<i64>,
 }
@@ -70,13 +77,13 @@ async fn hello() -> impl Responder {
 #[get("/swaps")]
 async fn get_swaps(
     query: web::Query<PaginationInfo>,
-    filter: web::Query<AddressInfo>,
+    filter: web::Query<SwapInfo>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
     let conn = pool.get().expect("couldn't get db connection from pool");
 
     // use web::block to offload blocking Diesel code without blocking server thread
-    let swaps = web::block(move || db::get_swaps(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref()))
+    let swaps = web::block(move || db::get_swaps(&conn, query.per_page, query.page, filter.pool.as_ref(), filter.address.as_ref(), filter.is_incoming.as_ref()))
         .await
         .map_err(|e| {
             eprintln!("{}", e);
