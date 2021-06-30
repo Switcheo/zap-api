@@ -69,16 +69,17 @@ impl Network {
         (String::from("zil1p5suryq6q647usxczale29cu3336hhp376c627"), 61), // ZWAP
         (String::from("zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e"), 7), // gZIL
         (String::from("zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t"), 7), // XSGD
+
         (String::from("zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2"), 4), // PORT
-        (String::from("zil1l0g8u6f9g0fsvjuu74ctyla2hltefrdyt7k5f4"), 4), // ZLP
-        (String::from("zil1hau7z6rjltvjc95pphwj57umdpvv0d6kh2t8zk"), 4), // CARB
         (String::from("zil1s8xzysqcxva2x6aducncv9um3zxr36way3fx9g"), 4), // ZCH
-        (String::from("zil1kwfu3x9n6fsuxc4ynp72uk5rxge25enw7zsf9z"), 4), // SCO
-        (String::from("zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v"), 1), // SRV
+        (String::from("zil1h63h5rlg7avatnlzhfnfzwn8vfspwkapzdy2aw"), 4), // XCAD
+        (String::from("zil1lq3ghn3yaqk0w7fqtszv53hejunpyfyh3rx9gc"), 4), // Elons
+
         (String::from("zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye"), 1), // REDC
         (String::from("zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0"), 1), // ZLF
         (String::from("zil1ucvrn22x8366vzpw5t7su6eyml2auczu6wnqqg"), 1), // ZYRO
         (String::from("zil1w5hwupgc9rxyuyd742g2c9annwahugrx80fw9h"), 1), // GARY
+        (String::from("zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c"), 1), // STREAM
       ].iter().cloned().collect(),
     }
   }
