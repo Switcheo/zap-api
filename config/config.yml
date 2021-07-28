@@ -1,0 +1,62 @@
+---
+mainnet:
+  zilswap_address_hex: "0xBa11eB7bCc0a02e947ACF03Cc651Bfaf19C9EC00"
+  start_txn_hash:
+    mint: "0x00a0e4800c709f38d97cd7e769c756a8c059e6aca5eaeace81509c8ab7eccdf4"
+    burn: "0x9f53e01877d7b40db95d332c3172e1f0d628fd68eabc1e7fcf3316be5619fd50"
+    swap: "0xee5c4cc44822ee48d2ea8466a4a03c9adb41635caac600e27700fc5e81d8d2dc"
+  distributions:
+    - name: "ZWAP Rewards"
+      reward_token: zwap
+      distributor_name: Zilswap
+      distributor_address_hex: ""
+      developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: 6250_000_000_000_000
+        tokens_for_retroactive_distribution: 50000_000_000_000_000
+        retroactive_distribution_cutoff_time: 1610964000
+        distribution_start_time: 1612339200
+        total_number_of_epochs: 152
+        initial_epoch_number: 2
+        developer_token_ratio_bps: 1500
+        trader_token_ratio_bps: 2000
+      incentived_pools:
+        zil1p5suryq6q647usxczale29cu3336hhp376c627: 65 # ZWAP
+        zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 7  # gZIL
+        zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 7  # XSGD
+        zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 4  # PORT
+        zil1s8xzysqcxva2x6aducncv9um3zxr36way3fx9g: 4  # ZCH
+        zil1h63h5rlg7avatnlzhfnfzwn8vfspwkapzdy2aw: 4  # XCAD
+        zil1lq3ghn3yaqk0w7fqtszv53hejunpyfyh3rx9gc: 3  # Elons
+        zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye: 1  # RED
+        zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
+        zil1ucvrn22x8366vzpw5t7su6eyml2auczu6wnqqg: 1  # ZYRO
+        zil1w5hwupgc9rxyuyd742g2c9annwahugrx80fw9h: 1  # GARY
+        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 1  # STREAM
+testnet:
+  zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
+  start_txn_hash:
+    mint: "0x9b8b5695c406d71137f5f420a67cf6b352ae865068530d293116dde072dbfdf6"
+    burn: "0xfbec07771a8cabd7c90c084b4ca77bf0a7216970eae5f68233b21cf13c947a3f"
+    swap: "0x1b660c073e30157e50085848c3595fda62c87ce1e7db328a46f8eb48c4c36957"
+  distributions:
+    - name: "ZWAP Rewards"
+      reward_token: zwap
+      distributor_name: Zilswap
+      distributor_address_hex: ""
+      developer_address: zil1ua2dhnlykmxtnuaudmqd3uju6altn6lq0lqvl9
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: 6250_000_000_000_000
+        tokens_for_retroactive_distribution: 50000_000_000_000_000
+        retroactive_distribution_cutoff_time: 1610964000
+        distribution_start_time: 1612339200
+        total_number_of_epochs: 152
+        initial_epoch_number: 2
+        developer_token_ratio_bps: 1500
+        trader_token_ratio_bps: 2000
+      incentived_pools:
+        zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
+        zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
+        zil1ktmx2udqc77eqq0mdjn8kqdvwjf9q5zvy6x7vu: 5 # ZWAP

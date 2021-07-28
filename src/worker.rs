@@ -7,6 +7,7 @@ use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
 use std::time::{Duration};
 use std::convert::TryInto;
+use std::collections::HashMap;
 use std::ops::Neg;
 use std::str::FromStr;
 
@@ -15,14 +16,38 @@ use crate::models;
 use crate::responses;
 use crate::constants::{Event, Network};
 
+#[derive(Clone)]
+pub struct WorkerConfig {
+  network: Network,
+  contract_hash: String,
+  initial_txn_hashes: HashMap<Event, String>,
+}
+
+impl WorkerConfig {
+  pub fn from_value(value: &serde_yaml::Value, network: Network) -> Self {
+    let hashes = &value["start_txn_hash"];
+    let f = serde_yaml::from_value::<String>;
+    Self {
+      network: network.clone(),
+      contract_hash: f(value["zilswap_address_hex"].clone()).expect("invalid zilswap_address_hex"),
+      initial_txn_hashes: [
+        (Event::Minted,  f(hashes["mint"].clone()).expect("invalid initial mint tx hash")),
+        (Event::Burnt,   f(hashes["burn"].clone()).expect("invalid initial burn tx hash")),
+        (Event::Swapped, f(hashes["swap"].clone()).expect("invalid initial swap tx hash")),
+      ].iter().cloned().collect(),
+    }
+  }
+}
+
 pub struct Coordinator{
+  config: WorkerConfig,
   db_pool: Pool<ConnectionManager<PgConnection>>,
   arbiter: Option<Addr<EventFetchActor>>,
 }
 
 impl Coordinator {
-  pub fn new(db_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
-    Coordinator { db_pool: db_pool, arbiter: None }
+  pub fn new(config: WorkerConfig, db_pool: Pool<ConnectionManager<PgConnection>>) -> Self {
+    Coordinator { config, db_pool, arbiter: None }
   }
 }
 
@@ -31,9 +56,10 @@ impl Actor for Coordinator {
 
   fn started(&mut self, ctx: &mut Self::Context) {
     println!("Coordinator is alive!");
+    let config = self.config.clone();
     let pool = self.db_pool.clone();
     let coordinator = ctx.address();
-    let arbiter = SyncArbiter::start(3, move || EventFetchActor::new(pool.clone(), coordinator.clone()));
+    let arbiter = SyncArbiter::start(3, move || EventFetchActor::new(config.clone(), pool.clone(), coordinator.clone()));
     arbiter.do_send(FetchMints { page_number: 1 });
     arbiter.do_send(FetchBurns { page_number: 1 });
     arbiter.do_send(FetchSwaps { page_number: 1 });
@@ -128,23 +154,15 @@ impl From<diesel::result::Error> for FetchError {
 
 /// Define fetch actor
 struct EventFetchActor {
+  config: WorkerConfig,
   coordinator: Addr<Coordinator>,
   client: Client,
-  network: Network,
-  contract_hash: String,
   db_pool: Pool<ConnectionManager<PgConnection>>
 }
 
 impl EventFetchActor {
-  fn new(db_pool: Pool<ConnectionManager<PgConnection>>, coordinator: Addr<Coordinator>) -> Self {
+  fn new(config: WorkerConfig, db_pool: Pool<ConnectionManager<PgConnection>>, coordinator: Addr<Coordinator>) -> Self {
     let api_key = std::env::var("VIEWBLOCK_API_KEY").expect("VIEWBLOCK_API_KEY env var missing.");
-    let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
-    let network = match network_str.as_str() {
-      "testnet" => Network::TestNet,
-      "mainnet" => Network::MainNet,
-      _ => panic!("Invalid network string")
-    };
-    let contract_hash = network.contract_hash();
     let mut headers = HeaderMap::new();
     headers.insert(
       "X-APIKEY",
@@ -157,10 +175,9 @@ impl EventFetchActor {
       .expect("Failed to build client.");
 
     Self {
+      config,
       coordinator,
       client,
-      network,
-      contract_hash,
       db_pool,
     }
   }
@@ -171,13 +188,13 @@ impl EventFetchActor {
     let url = Url::parse_with_params(
       format!(
         "https://api.viewblock.io/v1/zilliqa/contracts/{}/events/{}",
-        self.contract_hash,
+        self.config.contract_hash,
         event
       )
       .as_str(),
       &[
         ("page", page_number.to_string()),
-        ("network", self.network.to_string()),
+        ("network", self.config.network.to_string()),
       ],
     ).expect("URL parsing failed!");
 
@@ -191,7 +208,7 @@ impl EventFetchActor {
   }
 
   fn backfill_complete_for(&self, event: Event) -> bool {
-    let hash = String::from(self.network.first_txn_hash_for(&event));
+    let hash = String::from(self.config.initial_txn_hashes.get(&event).expect("unknown event"));
     let conn = self.db_pool.get().expect("couldn't get db connection from pool");
     match event {
       Event::Minted | Event::Burnt => db::liquidity_change_exists(&conn, hash).unwrap(),
