@@ -64,7 +64,7 @@ impl Validate for EmissionConfig {
   }
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct DistributionConfig {
   name: String,
   reward_token: String,
@@ -80,8 +80,12 @@ impl DistributionConfig {
     self.emission_info.clone()
   }
 
-  pub fn developer_address(&self) -> String {
-    self.developer_address.clone()
+  pub fn developer_address(&self) -> &str {
+    self.developer_address.as_str()
+  }
+
+  pub fn distributor_address(&self) -> &str {
+    self.distributor_address_hex.as_str()
   }
 
   pub fn incentived_pools(&self) -> HashMap<String, u32> {
@@ -233,8 +237,9 @@ impl EpochInfo {
 
 #[derive(Serialize, Clone)]
 pub struct Distribution {
-  address_human: String,
   address: Vec::<u8>,
+  address_hex: String,
+  address_human: String,
   amount: BigDecimal,
   hash: Vec::<u8>,
 }
@@ -244,7 +249,8 @@ impl Distribution {
     let (_hrp, data) = decode(address.as_str()).expect("Could not decode bech32 string!");
     let bytes = Vec::<u8>::from_base32(&data).unwrap();
     let hash = hash(&bytes, &amount);
-    Distribution{address_human: address, address: bytes, amount, hash}
+    let hex = encode(&bytes);
+    Distribution{address_human: address, address_hex: hex, address: bytes, amount, hash}
   }
 
   pub fn from(map: HashMap<String, BigDecimal>) -> Vec<Distribution> {
@@ -256,16 +262,16 @@ impl Distribution {
     arr
   }
 
-  pub fn address(&self) -> String {
-    self.address_human.clone()
+  pub fn address_bech32(&self) -> &str {
+    self.address_human.as_str()
   }
 
-  pub fn address_bytes(&self) -> Vec<u8> {
-    self.address.clone()
+  pub fn address_hex(&self) -> &str {
+    self.address_hex.as_str()
   }
 
-  pub fn amount(&self) -> BigDecimal {
-    self.amount.clone()
+  pub fn amount(&self) -> &BigDecimal {
+    &self.amount
   }
 
   pub fn hash(&self) -> Vec::<u8> {

@@ -1,10 +1,11 @@
 use std::{fmt};
 
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Event {
   Minted,
   Burnt,
   Swapped,
+  Claimed,
 }
 
 impl fmt::Display for Event {
@@ -13,6 +14,7 @@ impl fmt::Display for Event {
       Event::Minted => write!(f, "Mint"),
       Event::Burnt => write!(f, "Burnt"),
       Event::Swapped => write!(f, "Swapped"),
+      Event::Claimed => write!(f, "Claimed"),
     }
   }
 }

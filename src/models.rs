@@ -4,7 +4,7 @@ use diesel::sql_types::{Text, Numeric};
 use serde::{Serialize};
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes, distributions, pool_txs};
+use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, backfill_completions};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -113,7 +113,7 @@ pub struct PoolTx {
 
   pub token_amount: Option<BigDecimal>,
   pub zil_amount: Option<BigDecimal>,
-  
+
   pub tx_type: String,
 
   pub swap0_is_sending_zil: Option<bool>,
@@ -138,10 +138,48 @@ pub struct Distribution {
 
 #[derive(Debug, Clone, Insertable)]
 #[table_name="distributions"]
-pub struct NewDistribution {
+pub struct NewDistribution<'a> {
+  pub epoch_number: &'a i32,
+  pub address_bech32: &'a str,
+  pub address_hex: &'a str,
+  pub amount: &'a BigDecimal,
+  pub proof: &'a str,
+}
+
+#[derive(Debug, Identifiable, Queryable, Serialize)]
+pub struct Claim {
+  pub id: Uuid,
+  pub transaction_hash: String,
+  pub event_sequence: i32,
+  pub block_height: i32,
+  pub block_timestamp: NaiveDateTime,
+  pub initiator_address: String,
+  pub distributor_address: String,
   pub epoch_number: i32,
-  pub address_bech32: String,
-  pub address_hex: String,
-  pub amount: BigDecimal,
-  pub proof: String,
+}
+
+#[derive(Debug, Clone, Insertable)]
+#[table_name="claims"]
+pub struct NewClaim<'a> {
+  pub transaction_hash: &'a str,
+  pub event_sequence: &'a i32,
+  pub block_height: &'a i32,
+  pub block_timestamp: &'a NaiveDateTime,
+  pub initiator_address: &'a str,
+  pub distributor_address: &'a str,
+  pub epoch_number: &'a i32,
+}
+
+#[derive(Debug, Identifiable, Queryable, Serialize)]
+pub struct BackfillCompletion {
+  pub id: Uuid,
+  pub contract_address: String,
+  pub event_name: String,
+}
+
+#[derive(Debug, Clone, Insertable)]
+#[table_name="backfill_completions"]
+pub struct NewBackfillCompletion<'a> {
+  pub contract_address: &'a str,
+  pub event_name: &'a str,
 }

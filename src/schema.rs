@@ -1,4 +1,25 @@
 table! {
+    backfill_completions (id) {
+        id -> Uuid,
+        contract_address -> Varchar,
+        event_name -> Varchar,
+    }
+}
+
+table! {
+    claims (id) {
+        id -> Uuid,
+        transaction_hash -> Varchar,
+        event_sequence -> Int4,
+        block_height -> Int4,
+        block_timestamp -> Timestamp,
+        distributor_address -> Varchar,
+        epoch_number -> Int4,
+        initiator_address -> Varchar,
+    }
+}
+
+table! {
     distributions (id) {
         id -> Uuid,
         epoch_number -> Int4,
@@ -39,32 +60,34 @@ table! {
     }
 }
 
-table! {
-    pool_txs (id) {
-        id -> Uuid,
-        transaction_hash -> Varchar,
-        block_height -> Int4,
-        block_timestamp -> Timestamp,
-        initiator_address -> Varchar,
-        token_address -> Varchar,
+ table! {
+      pool_txs (id) {
+          id -> Uuid,
+          transaction_hash -> Varchar,
+          block_height -> Int4,
+          block_timestamp -> Timestamp,
+          initiator_address -> Varchar,
+          token_address -> Varchar,
 
-        token_amount -> Nullable<Numeric>,
-        zil_amount -> Nullable<Numeric>,
+          token_amount -> Nullable<Numeric>,
+          zil_amount -> Nullable<Numeric>,
 
-        tx_type -> Varchar,
+          tx_type -> Varchar,
 
-        swap0_is_sending_zil -> Nullable<Bool>,
+          swap0_is_sending_zil -> Nullable<Bool>,
 
-        swap1_token_address -> Nullable<Varchar>,
-        swap1_token_amount -> Nullable<Numeric>,
-        swap1_zil_amount -> Nullable<Numeric>,
-        swap1_is_sending_zil -> Nullable<Bool>,
+          swap1_token_address -> Nullable<Varchar>,
+          swap1_token_amount -> Nullable<Numeric>,
+          swap1_zil_amount -> Nullable<Numeric>,
+          swap1_is_sending_zil -> Nullable<Bool>,
 
-        change_amount -> Nullable<Numeric>,
-    }
-}
+          change_amount -> Nullable<Numeric>,
+      }
+  }
 
 allow_tables_to_appear_in_same_query!(
+    backfill_completions,
+    claims,
     distributions,
     liquidity_changes,
     swaps,

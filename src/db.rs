@@ -13,8 +13,8 @@ pub fn get_swaps(
   conn: &PgConnection,
   per_page: Option<i64>,
   page: Option<i64>,
-  pool: Option<&String>,
-  address: Option<&String>,
+  pool: Option<&str>,
+  address: Option<&str>,
   is_incoming: Option<&bool>,
 ) -> Result<PaginatedResult<models::Swap>, diesel::result::Error> {
   // It is common when using Diesel with Actix web to import schema-related
@@ -48,8 +48,8 @@ pub fn get_liquidity_changes(
   conn: &PgConnection,
   per_page: Option<i64>,
   page: Option<i64>,
-  pool: Option<&String>,
-  address: Option<&String>,
+  pool: Option<&str>,
+  address: Option<&str>,
 ) -> Result<PaginatedResult<models::LiquidityChange>, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
 
@@ -75,7 +75,7 @@ pub fn get_liquidity_changes(
 pub fn get_distributions(
   conn: &PgConnection,
   epoch: Option<i32>,
-  address: Option<&String>,
+  address: Option<&str>,
 ) -> Result<Vec<models::Distribution>, diesel::result::Error> {
   use crate::schema::distributions::dsl::*;
 
@@ -98,7 +98,7 @@ pub fn get_distributions(
 /// Get all distributions for an address.
 pub fn get_distributions_by_address(
   conn: &PgConnection,
-  address: &String,
+  address: &str,
 ) -> Result<Vec<models::Distribution>, diesel::result::Error> {
   use crate::schema::distributions::dsl::*;
 
@@ -126,7 +126,7 @@ pub fn get_pools(
 pub fn get_liquidity(
   conn: &PgConnection,
   timestamp: Option<i64>,
-  address: Option<&String>,
+  address: Option<&str>,
 ) -> Result<Vec<models::Liquidity>, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
 
@@ -152,7 +152,7 @@ pub fn get_liquidity(
 /// Gets the swap volume for all pools over the given period in zil / token amounts.
 pub fn get_volume(
   conn: &PgConnection,
-  address: Option<&String>,
+  address: Option<&str>,
   start_timestamp: Option<i64>,
   end_timestamp: Option<i64>,
 ) -> Result<Vec<models::Volume>, diesel::result::Error> {
@@ -223,13 +223,13 @@ pub fn get_time_weighted_liquidity(
   conn: &PgConnection,
   start_timestamp: Option<i64>,
   end_timestamp: Option<i64>,
-  address: Option<&String>,
+  address: Option<&str>,
 ) -> Result<Vec<models::Liquidity>, diesel::result::Error> {
   let address_fragment = match address {
     Some(_addr) => "AND initiator_address = $3", // bind later
     None => "AND '1' = $3", // bind to noop
   };
-  let noop = String::from("1");
+  let noop = "1";
 
   let start_dt = match start_timestamp {
     Some(start_timestamp) => NaiveDateTime::from_timestamp(start_timestamp, 0),
@@ -372,8 +372,8 @@ pub fn get_time_weighted_liquidity_by_address(
 /// List LP transactions
 pub fn get_transactions(
   conn: &PgConnection,
-  address: Option<&String>,
-  pool: Option<&String>,
+  address: Option<&str>,
+  pool: Option<&str>,
   start_timestamp: Option<i64>,
   end_timestamp: Option<i64>,
   per_page: Option<i64>,
@@ -490,9 +490,45 @@ pub fn insert_distributions(
   Ok(())
 }
 
+/// Inserts a new claim into the db.
+pub fn insert_claim(
+  new_claim: models::NewClaim,
+  conn: &PgConnection,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::claims::dsl::*;
+
+  diesel::insert_into(claims)
+    .values(&new_claim)
+    .execute(conn)?;
+
+  Ok(())
+}
+
+/// Inserts a backfill completion into the db ignoring duplicates.
+pub fn insert_backfill_completion(
+  new_backfill_completion: models::NewBackfillCompletion,
+  conn: &PgConnection,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::backfill_completions::dsl::*;
+
+  let res = diesel::insert_into(backfill_completions)
+    .values(&new_backfill_completion)
+    .execute(conn);
+
+  if let Err(e) = res {
+    match e {
+      diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
+        println!("Ignoring duplicate backfill_completion entry!"),
+      _ => return Err(e)
+    }
+  }
+
+  Ok(())
+}
+
 pub fn swap_exists(
   conn: &PgConnection,
-  hash: String,
+  hash: &str,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::swaps::dsl::*;
 
@@ -502,7 +538,7 @@ pub fn swap_exists(
 
 pub fn liquidity_change_exists(
   conn: &PgConnection,
-  hash: String,
+  hash: &str,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
   Ok(diesel::select(exists(liquidity_changes.filter(transaction_hash.eq(hash))))
@@ -511,10 +547,21 @@ pub fn liquidity_change_exists(
 
 pub fn epoch_exists(
   conn: &PgConnection,
-  epoch: i32,
+  epoch: &i32,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::distributions::dsl::*;
 
   Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch))))
+    .get_result(conn)?)
+}
+
+pub fn backfill_completed(
+  conn: &PgConnection,
+  address: &str,
+  event: &str,
+) -> Result<bool, diesel::result::Error> {
+  use crate::schema::backfill_completions::dsl::*;
+
+  Ok(diesel::select(exists(backfill_completions.filter(contract_address.eq(address)).filter(event_name.eq(event))))
     .get_result(conn)?)
 }
