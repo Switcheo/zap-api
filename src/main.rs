@@ -465,6 +465,25 @@ async fn get_distribution_data_by_address(
   Ok(HttpResponse::Ok().json(distributions))
 }
 
+/// Get claims data by user address.
+#[get("/claims/data/{user_address}")]
+async fn get_claims_data_by_address(
+  pool: web::Data<DbPool>,
+  web::Path(user_address): web::Path<String>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let claims = web::block(move || db::get_claims_by_address(&conn, &user_address))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+      
+  Ok(HttpResponse::Ok().json(claims))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   std::env::set_var("RUST_LOG", "actix_web=info");

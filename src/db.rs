@@ -109,6 +109,20 @@ pub fn get_distributions_by_address(
   Ok(query.load(conn)?)
 }
 
+/// Get all claims for an address.
+pub fn get_claims_by_address(
+  conn: &PgConnection,
+  address: &str,
+) -> Result<Vec<models::Claim>, diesel::result::Error> {
+  use crate::schema::claims::dsl::*; // imports aliases
+  
+  let query = claims
+    .order(epoch_number.asc())
+    .filter(initiator_address.eq(address));
+  
+  Ok(query.load(conn)?)
+}
+
 /// Get all pools.
 pub fn get_pools(
   conn: &PgConnection,
