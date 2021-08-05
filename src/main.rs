@@ -68,6 +68,12 @@ struct PeriodInfo {
   until: Option<i64>,
 }
 
+#[derive(Deserialize)]
+struct ClaimInfo {
+  address: Option<String>,
+  distributor_address: Option<String>,
+}
+
 /// Test endpoint.
 #[get("/")]
 async fn hello() -> impl Responder {
@@ -465,22 +471,22 @@ async fn get_distribution_data_by_address(
   Ok(HttpResponse::Ok().json(distributions))
 }
 
-/// Get claims data by user address.
-#[get("/claims/data/{user_address}")]
-async fn get_claims_data_by_address(
+/// Get claims history.
+#[get("/claims")]
+async fn get_claims(
+  pagination: web::Query<PaginationInfo>,
+  filter: web::Query<ClaimInfo>,
   pool: web::Data<DbPool>,
-  web::Path(user_address): web::Path<String>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let claims = web::block(move || db::get_claims_by_address(&conn, &user_address))
+  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distributor_address.as_deref(), pagination.per_page, pagination.page))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
           HttpResponse::InternalServerError().finish()
       })?;
 
-      
   Ok(HttpResponse::Ok().json(claims))
 }
 

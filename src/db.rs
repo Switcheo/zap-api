@@ -110,17 +110,31 @@ pub fn get_distributions_by_address(
 }
 
 /// Get all claims for an address.
-pub fn get_claims_by_address(
+pub fn get_claims(
   conn: &PgConnection,
-  address: &str,
-) -> Result<Vec<models::Claim>, diesel::result::Error> {
-  use crate::schema::claims::dsl::*; // imports aliases
+  address: Option<&str>,
+  dist_address: Option<&str>,
+  per_page: Option<i64>,
+  page: Option<i64>,
+) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
+  use crate::schema::claims::dsl::*;
   
-  let query = claims
+  let mut query = claims.into_boxed::<Pg>();
+
+  if let Some(dist_address) = dist_address {
+    query = query.filter(distributor_address.eq(dist_address));
+  }
+
+  if let Some(address) = address {
+    query = query.filter(initiator_address.eq(address));
+  }
+
+  Ok(query
     .order(epoch_number.asc())
-    .filter(initiator_address.eq(address));
-  
-  Ok(query.load(conn)?)
+    .paginate(page)
+    .per_page(per_page)
+    .load_and_count_pages::<models::Claim>(conn)?
+  )
 }
 
 /// Get all pools.
