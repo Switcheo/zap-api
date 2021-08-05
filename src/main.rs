@@ -562,6 +562,7 @@ async fn main() -> std::io::Result<()> {
         .send_wildcard())
       .service(hello)
       .service(generate_epoch)
+      .service(get_claims)
       .service(get_distribution_info)
       .service(get_distribution_data)
       .service(get_distribution_data_by_address)
