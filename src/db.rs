@@ -118,7 +118,7 @@ pub fn get_distributions_by_address(
 pub fn get_claims(
   conn: &PgConnection,
   address: Option<&str>,
-  dist_address: Option<&str>,
+  distr_address: Option<&str>,
   per_page: Option<i64>,
   page: Option<i64>,
 ) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
@@ -126,12 +126,12 @@ pub fn get_claims(
   
   let mut query = claims.into_boxed::<Pg>();
 
-  if let Some(dist_address) = dist_address {
-    query = query.filter(distributor_address.eq(dist_address));
-  }
-
   if let Some(address) = address {
     query = query.filter(initiator_address.eq(address));
+  }
+
+  if let Some(distr_address) = distr_address {
+    query = query.filter(distributor_address.eq(distr_address));
   }
 
   Ok(query
