@@ -13,9 +13,9 @@ table! {
         event_sequence -> Int4,
         block_height -> Int4,
         block_timestamp -> Timestamp,
+        initiator_address -> Varchar,
         distributor_address -> Varchar,
         epoch_number -> Int4,
-        initiator_address -> Varchar,
     }
 }
 
