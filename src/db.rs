@@ -74,6 +74,7 @@ pub fn get_liquidity_changes(
 /// Get distributions by epoch, optionally filtered by address.
 pub fn get_distributions(
   conn: &PgConnection,
+  distr_address: Option<&str>,
   epoch: Option<i32>,
   address: Option<&str>,
 ) -> Result<Vec<models::Distribution>, diesel::result::Error> {
@@ -87,6 +88,10 @@ pub fn get_distributions(
 
   if let Some(address) = address {
     query = query.filter(address_bech32.eq(address));
+  }
+
+  if let Some(distr_address) = distr_address {
+    query = query.filter(distributor_address.eq(distr_address));
   }
 
   Ok(query
@@ -135,6 +140,28 @@ pub fn get_claims(
     .per_page(per_page)
     .load_and_count_pages::<models::Claim>(conn)?
   )
+}
+
+/// Get unclaimed distributions for an address.
+pub fn get_unclaimed_distributions_by_address(
+  conn: &PgConnection,
+  address: &str,
+) -> Result<Vec<models::Distribution>, diesel::result::Error> {
+  let sql = "
+    SELECT d.id, d.distributor_address, d.epoch_number,
+    d.address_bech32, d.address_hex, d.amount, d.proof
+    FROM distributions d
+    LEFT OUTER JOIN claims c
+    ON d.distributor_address = c.distributor_address
+    AND d.epoch_number = c.epoch_number
+    WHERE address_bech32 = $1
+    AND c.id IS NULL
+  ";
+
+  let query = diesel::sql_query(sql)
+    .bind::<Text, _>(address);
+
+  Ok(query.load::<models::Distribution>(conn)?)
 }
 
 /// Get all pools.
