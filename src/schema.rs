@@ -1,6 +1,28 @@
 table! {
+    backfill_completions (id) {
+        id -> Uuid,
+        contract_address -> Varchar,
+        event_name -> Varchar,
+    }
+}
+
+table! {
+    claims (id) {
+        id -> Uuid,
+        transaction_hash -> Varchar,
+        event_sequence -> Int4,
+        block_height -> Int4,
+        block_timestamp -> Timestamp,
+        distributor_address -> Varchar,
+        epoch_number -> Int4,
+        initiator_address -> Varchar,
+    }
+}
+
+table! {
     distributions (id) {
         id -> Uuid,
+        distributor_address -> Varchar,
         epoch_number -> Int4,
         address_bech32 -> Varchar,
         address_hex -> Varchar,
@@ -65,6 +87,8 @@ table! {
 }
 
 allow_tables_to_appear_in_same_query!(
+    backfill_completions,
+    claims,
     distributions,
     liquidity_changes,
     swaps,

@@ -1,105 +1,221 @@
-
 use bech32::{decode, FromBase32};
-use bigdecimal::{BigDecimal};
+use bigdecimal::{BigDecimal, Zero};
 use hex::{encode};
 use ring::{digest};
-use serde::{Serialize};
+use serde::{Serialize, Deserialize};
 use std::collections::HashMap;
+use std::convert::{TryInto};
 use std::time::{SystemTime};
+use std::str::{FromStr};
 use trees::{Tree, TreeWalk, Node, walk::Visit};
 
-use crate::constants::{zwap_emission};
+#[derive(Debug, Clone)]
+pub struct InvalidConfigError {
+  details: String
+}
+
+pub trait Validate {
+  fn validate(&self) -> Result<(), InvalidConfigError>;
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct EmissionConfig {
+  epoch_period: i64,
+  tokens_per_epoch: String,
+  tokens_for_retroactive_distribution: String,
+  retroactive_distribution_cutoff_time: i64,
+  distribution_start_time: i64,
+  total_number_of_epochs: u32,
+  initial_epoch_number: u32,
+  developer_token_ratio_bps: u16,
+  trader_token_ratio_bps: u16,
+}
+
+impl Validate for EmissionConfig {
+  fn validate(&self) -> Result<(), InvalidConfigError> {
+    let mut errs = vec![];
+    if self.retroactive_distribution_cutoff_time > 0 && self.initial_epoch_number < 1 {
+      errs.push("initial_epoch_number must be more than 0")
+    }
+    if self.total_number_of_epochs == 0 {
+      errs.push("total_number_of_epochs must be more than 0")
+    }
+    match BigDecimal::from_str(self.tokens_for_retroactive_distribution.as_str()) {
+      Ok(r) => {
+        if self.retroactive_distribution_cutoff_time > 0 && r.is_zero() {
+          errs.push("tokens_for_retroactive_distribution must be more than 0")
+        }
+      }
+      Err(_) => errs.push("tokens_for_retroactive_distribution is invalid")
+    }
+    match BigDecimal::from_str(self.tokens_per_epoch.as_str()) {
+      Ok(r) => {
+        if r.is_zero() {
+          errs.push("tokens_per_epoch must be more than 0")
+        }
+      }
+      Err(_) => errs.push("tokens_per_epoch is invalid")
+    }
+    if errs.len() > 0 {
+      Err(InvalidConfigError{details: errs.join("\n")})
+    } else {
+      Ok(())
+    }
+  }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct DistributionConfig {
+  name: String,
+  reward_token: String,
+  distributor_name: String,
+  distributor_address_hex: String,
+  developer_address: String,
+  emission_info: EmissionConfig,
+  incentived_pools: HashMap<String, u32>,
+}
+
+impl DistributionConfig {
+  pub fn emission(&self) -> EmissionConfig {
+    self.emission_info.clone()
+  }
+
+  pub fn developer_address(&self) -> &str {
+    self.developer_address.as_str()
+  }
+
+  pub fn distributor_address(&self) -> &str {
+    self.distributor_address_hex.as_str()
+  }
+
+  pub fn incentived_pools(&self) -> HashMap<String, u32> {
+    self.incentived_pools.clone()
+  }
+}
+
+pub type DistributionConfigs = Vec<DistributionConfig>;
+impl Validate for DistributionConfigs {
+  fn validate(&self) -> Result<(), InvalidConfigError> {
+    if self.len() == 0 {
+      return Err(InvalidConfigError{details: "No distributions found".to_owned()})
+    }
+    for d in self {
+      if let Err(e) = d.emission_info.validate() {
+        return Err(InvalidConfigError{details: format!("Distribution for '{}' is invalid: {:?}", d.name, e)})
+      }
+    }
+    Ok(())
+  }
+}
 
 #[derive(Serialize)]
 pub struct EpochInfo {
-  epoch_period: i64,
-  tokens_per_epoch: u32,
+  emission_info: EmissionConfig,
+  retroactive_distribution_epoch_number: Option<u32>,
+  first_epoch_number: u32,
   first_epoch_start: i64,
-  next_epoch_start: i64,
-  total_epoch: u32,
-  current_epoch: i64,
+  last_epoch_number: u32,
+  current_epoch_number: u32,
+  current_epoch_start: Option<i64>,
+  current_epoch_end: Option<i64>,
+  tokens_for_epoch: BigDecimal,
+  next_epoch_start: Option<i64>,
 }
 
 impl EpochInfo {
-  pub fn new(epoch_number: i64) -> EpochInfo {
-    let first_epoch_start = zwap_emission::DISTRIBUTION_START_TIME;
-    let epoch_period = zwap_emission::EPOCH_PERIOD;
-    let total_epoch = zwap_emission::TOTAL_NUMBER_OF_EPOCH;
-    let tokens_per_epoch = zwap_emission::TOKENS_PER_EPOCH;
+  pub fn new(emission: EmissionConfig, epoch_number: Option<u32>) -> EpochInfo {
+    let current_epoch_number = match epoch_number {
+      Some(n) => n,
+      None => {
+        let current_time = SystemTime::now()
+          .duration_since(SystemTime::UNIX_EPOCH)
+          .expect("invalid server time")
+          .as_secs() as i64;
+        let epochs_after_start = (current_time - emission.distribution_start_time) as f64 / emission.epoch_period as f64;
+        std::cmp::max(0, epochs_after_start.ceil() as u32 + emission.initial_epoch_number - 1)
+      }
+    };
 
-    let next_epoch_start =
-      if epoch_number == 0 || epoch_number == 1 {
-        first_epoch_start
+    let retroactive_distribution_epoch_number =
+      if emission.retroactive_distribution_cutoff_time > 0 {
+        Some(emission.initial_epoch_number - 1)
       } else {
-        // first real epoch starts from 2
-        std::cmp::min(epoch_number - 1, total_epoch.into()) * epoch_period + first_epoch_start
+        None
       };
 
-    EpochInfo {
-      epoch_period,
-      tokens_per_epoch,
+    let first_epoch_number = emission.initial_epoch_number;
+    let last_epoch_number = emission.total_number_of_epochs + emission.initial_epoch_number - 1;
+
+    let first_epoch_start = emission.distribution_start_time;
+
+    let (current_epoch_start, current_epoch_end) =
+      if current_epoch_number < emission.initial_epoch_number {
+        (Some(0), Some(emission.retroactive_distribution_cutoff_time))
+      } else if current_epoch_number <= last_epoch_number {
+        let start = i64::from(current_epoch_number - emission.initial_epoch_number) * emission.epoch_period + first_epoch_start;
+        (Some(start), Some(start + emission.epoch_period))
+      } else {
+        (None, None)
+      };
+
+    let next_epoch_start =
+      if current_epoch_number < emission.initial_epoch_number {
+        Some(first_epoch_start)
+      } else if current_epoch_number < last_epoch_number {
+        current_epoch_end
+      } else {
+        None
+      };
+
+    let tokens_for_epoch =
+      if current_epoch_number < emission.initial_epoch_number {
+        BigDecimal::from_str(emission.tokens_for_retroactive_distribution.as_str()).unwrap()
+      } else if current_epoch_number <= last_epoch_number {
+        BigDecimal::from_str(emission.tokens_per_epoch.as_str()).unwrap()
+      } else {
+        BigDecimal::from(0)
+      };
+
+    Self {
+      emission_info: emission,
+      retroactive_distribution_epoch_number,
+      first_epoch_number,
       first_epoch_start,
+      last_epoch_number,
+      current_epoch_number,
+      current_epoch_start,
+      current_epoch_end,
+      tokens_for_epoch,
       next_epoch_start,
-      total_epoch,
-      current_epoch: epoch_number,
     }
-  }
-
-  pub fn default() -> EpochInfo {
-    let current_time = SystemTime::now()
-      .duration_since(SystemTime::UNIX_EPOCH)
-      .expect("invalid server time")
-      .as_secs() as i64;
-
-    let epoch_number = (current_time - zwap_emission::DISTRIBUTION_START_TIME) as f64 / zwap_emission::EPOCH_PERIOD as f64;
-    let current_epoch = std::cmp::max(0, epoch_number.ceil() as i64 + 1); // first real epoch starts from 2
-
-    EpochInfo::new(current_epoch)
   }
 
   pub fn is_initial(&self) -> bool {
-    self.current_epoch == 0 || self.current_epoch == 1
+    self.current_epoch_number < self.first_epoch_number
   }
 
-  // XXX: epoch 1 is an empty epoch that only has trader data
-  pub fn trader_epoch(&self) -> bool {
-    self.current_epoch == 1
+  pub fn epoch_number(&self) -> i32 {
+    self.current_epoch_number.try_into().unwrap()
   }
 
-  pub fn epoch_number(&self) -> i64 {
-    self.current_epoch
+  pub fn current_epoch_start(&self) -> Option<i64> {
+    self.current_epoch_start
   }
 
-  pub fn current_epoch_start(&self) -> i64 {
-    if self.is_initial() {
-      0
-    } else {
-      (std::cmp::min(self.current_epoch - 1, zwap_emission::TOTAL_NUMBER_OF_EPOCH.into()) - 1) * zwap_emission::EPOCH_PERIOD + zwap_emission::DISTRIBUTION_START_TIME
-    }
+  pub fn current_epoch_end(&self) -> Option<i64> {
+    self.current_epoch_end
   }
 
-  pub fn current_epoch_end(&self) -> i64 {
-    if self.is_initial() {
-      zwap_emission::RETROACTIVE_DISTRIBUTION_CUTOFF_TIME
-    } else {
-      self.next_epoch_start()
-    }
-  }
-
-  pub fn next_epoch_start(&self) -> i64 {
-    self.next_epoch_start
+  pub fn distribution_ended(&self) -> bool {
+    self.current_epoch_number > self.last_epoch_number
   }
 
   pub fn tokens_for_epoch(&self) -> BigDecimal {
-    if self.is_initial() {
-      BigDecimal::from(50_000)* BigDecimal::from(10u64.pow(12))
-    } else {
-      BigDecimal::from(self.tokens_per_epoch)* BigDecimal::from(10u64.pow(12))
-    }
+    self.tokens_for_epoch.clone()
   }
 
   pub fn tokens_for_developers(&self) -> BigDecimal {
-    self.tokens_for_epoch() * BigDecimal::from(15) / BigDecimal::from(100)
+    self.tokens_for_epoch() * BigDecimal::from(self.emission_info.developer_token_ratio_bps) / BigDecimal::from(10000)
   }
 
   pub fn tokens_for_users(&self) -> BigDecimal {
@@ -108,7 +224,7 @@ impl EpochInfo {
 
   pub fn tokens_for_traders(&self) -> BigDecimal {
     if self.is_initial() {
-      self.tokens_for_users() * BigDecimal::from(20) / BigDecimal::from(100)
+      self.tokens_for_users() * BigDecimal::from(self.emission_info.trader_token_ratio_bps) / BigDecimal::from(10000)
     } else {
       BigDecimal::default()
     }
@@ -121,8 +237,9 @@ impl EpochInfo {
 
 #[derive(Serialize, Clone)]
 pub struct Distribution {
-  address_human: String,
   address: Vec::<u8>,
+  address_hex: String,
+  address_human: String,
   amount: BigDecimal,
   hash: Vec::<u8>,
 }
@@ -132,7 +249,8 @@ impl Distribution {
     let (_hrp, data) = decode(address.as_str()).expect("Could not decode bech32 string!");
     let bytes = Vec::<u8>::from_base32(&data).unwrap();
     let hash = hash(&bytes, &amount);
-    Distribution{address_human: address, address: bytes, amount, hash}
+    let hex = encode(&bytes);
+    Distribution{address_human: address, address_hex: hex, address: bytes, amount, hash}
   }
 
   pub fn from(map: HashMap<String, BigDecimal>) -> Vec<Distribution> {
@@ -144,16 +262,16 @@ impl Distribution {
     arr
   }
 
-  pub fn address(&self) -> String {
-    self.address_human.clone()
+  pub fn address_bech32(&self) -> &str {
+    self.address_human.as_str()
   }
 
-  pub fn address_bytes(&self) -> Vec<u8> {
-    self.address.clone()
+  pub fn address_hex(&self) -> &str {
+    self.address_hex.as_str()
   }
 
-  pub fn amount(&self) -> BigDecimal {
-    self.amount.clone()
+  pub fn amount(&self) -> &BigDecimal {
+    &self.amount
   }
 
   pub fn hash(&self) -> Vec::<u8> {
