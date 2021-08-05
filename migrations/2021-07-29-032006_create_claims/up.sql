@@ -10,5 +10,4 @@ CREATE TABLE claims (
   initiator_address VARCHAR NOT NULL
 );
 
-CREATE INDEX index_initiator_address_on_claim ON claims (initiator_address);
-CREATE UNIQUE INDEX index_unique_claim ON claims (distributor_address, epoch_number, initiator_address);
+CREATE UNIQUE INDEX index_unique_claim ON claims (initiator_address, distributor_address, epoch_number);

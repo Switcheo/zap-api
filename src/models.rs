@@ -126,9 +126,11 @@ pub struct PoolTx {
   pub change_amount: Option<BigDecimal>,
 }
 
-#[derive(Debug, Identifiable, Queryable, Serialize)]
+#[derive(Debug, Identifiable, Queryable, QueryableByName, Serialize)]
+#[table_name="distributions"]
 pub struct Distribution {
   pub id: Uuid,
+  pub distributor_address: String,
   pub epoch_number: i32,
   pub address_bech32: String,
   pub address_hex: String,
@@ -139,6 +141,7 @@ pub struct Distribution {
 #[derive(Debug, Clone, Insertable)]
 #[table_name="distributions"]
 pub struct NewDistribution<'a> {
+  pub distributor_address: &'a str,
   pub epoch_number: &'a i32,
   pub address_bech32: &'a str,
   pub address_hex: &'a str,

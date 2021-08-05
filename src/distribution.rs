@@ -64,7 +64,7 @@ impl Validate for EmissionConfig {
   }
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct DistributionConfig {
   name: String,
   reward_token: String,
