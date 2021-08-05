@@ -114,7 +114,7 @@ pub fn get_distributions_by_address(
   Ok(query.load(conn)?)
 }
 
-/// Get all claims for an address.
+/// Get all claims, optionally filtered by address and/or distributor address
 pub fn get_claims(
   conn: &PgConnection,
   address: Option<&str>,
