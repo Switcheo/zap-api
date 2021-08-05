@@ -18,18 +18,16 @@ mainnet:
         developer_token_ratio_bps: 1500
         trader_token_ratio_bps: 2000
       incentived_pools:
-        zil1p5suryq6q647usxczale29cu3336hhp376c627: 65 # ZWAP
+        zil1p5suryq6q647usxczale29cu3336hhp376c627: 70 # ZWAP
         zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 7  # gZIL
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 7  # XSGD
         zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 4  # PORT
-        zil1s8xzysqcxva2x6aducncv9um3zxr36way3fx9g: 4  # ZCH
-        zil1h63h5rlg7avatnlzhfnfzwn8vfspwkapzdy2aw: 4  # XCAD
+        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 4  # STREAM
         zil1lq3ghn3yaqk0w7fqtszv53hejunpyfyh3rx9gc: 3  # Elons
         zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye: 1  # RED
-        zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
         zil1ucvrn22x8366vzpw5t7su6eyml2auczu6wnqqg: 1  # ZYRO
         zil1w5hwupgc9rxyuyd742g2c9annwahugrx80fw9h: 1  # GARY
-        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 1  # STREAM
+        zil1qldr63ds7yuspqcf02263y2lctmtqmr039vrht: 1  # PAINT
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
