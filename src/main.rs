@@ -71,7 +71,7 @@ struct PeriodInfo {
 #[derive(Deserialize)]
 struct ClaimInfo {
   address: Option<String>,
-  distributor_address: Option<String>,
+  distr_address: Option<String>,
 }
 
 /// Test endpoint.
@@ -488,7 +488,7 @@ async fn get_claims(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distributor_address.as_deref(), pagination.per_page, pagination.page))
+  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), pagination.per_page, pagination.page))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
