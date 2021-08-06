@@ -521,7 +521,8 @@ async fn main() -> std::io::Result<()> {
   };
 
   // load config
-  let f = std::fs::File::open("config/config.yml")?;
+  let config_file_path = std::env::var("CONFIG_FILE").unwrap_or(String::from("config/config.yml"));
+  let f = std::fs::File::open(config_file_path)?;
   let data: serde_yaml::Value = serde_yaml::from_reader(f).expect("Could not read config.yml");
   let distr_configs = serde_yaml::from_value::<DistributionConfigs>(
     data[network.to_string()]["distributions"].clone()
