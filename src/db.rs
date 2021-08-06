@@ -114,6 +114,34 @@ pub fn get_distributions_by_address(
   Ok(query.load(conn)?)
 }
 
+/// Get all claims, optionally filtered by address and/or distributor address
+pub fn get_claims(
+  conn: &PgConnection,
+  address: Option<&str>,
+  distr_address: Option<&str>,
+  per_page: Option<i64>,
+  page: Option<i64>,
+) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
+  use crate::schema::claims::dsl::*;
+  
+  let mut query = claims.into_boxed::<Pg>();
+
+  if let Some(address) = address {
+    query = query.filter(initiator_address.eq(address));
+  }
+
+  if let Some(distr_address) = distr_address {
+    query = query.filter(distributor_address.eq(distr_address));
+  }
+
+  Ok(query
+    .order(epoch_number.asc())
+    .paginate(page)
+    .per_page(per_page)
+    .load_and_count_pages::<models::Claim>(conn)?
+  )
+}
+
 /// Get unclaimed distributions for an address.
 pub fn get_unclaimed_distributions_by_address(
   conn: &PgConnection,

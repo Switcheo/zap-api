@@ -68,6 +68,12 @@ struct PeriodInfo {
   until: Option<i64>,
 }
 
+#[derive(Deserialize)]
+struct ClaimInfo {
+  address: Option<String>,
+  distr_address: Option<String>,
+}
+
 /// Test endpoint.
 #[get("/")]
 async fn hello() -> impl Responder {
@@ -473,6 +479,25 @@ async fn get_distribution_data_by_address(
   Ok(HttpResponse::Ok().json(distributions))
 }
 
+/// Get claims history.
+#[get("/claims")]
+async fn get_claims(
+  pagination: web::Query<PaginationInfo>,
+  filter: web::Query<ClaimInfo>,
+  pool: web::Data<DbPool>,
+) -> Result<HttpResponse, Error> {
+  let conn = pool.get().expect("couldn't get db connection from pool");
+
+  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), pagination.per_page, pagination.page))
+      .await
+      .map_err(|e| {
+          eprintln!("{}", e);
+          HttpResponse::InternalServerError().finish()
+      })?;
+
+  Ok(HttpResponse::Ok().json(claims))
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
   std::env::set_var("RUST_LOG", "actix_web=info");
@@ -537,6 +562,7 @@ async fn main() -> std::io::Result<()> {
         .send_wildcard())
       .service(hello)
       .service(generate_epoch)
+      .service(get_claims)
       .service(get_distribution_info)
       .service(get_distribution_data)
       .service(get_distribution_data_by_address)
