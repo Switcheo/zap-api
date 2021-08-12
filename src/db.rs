@@ -25,7 +25,10 @@ pub fn get_swaps(
   let mut query = swaps.into_boxed::<Pg>();
 
   if let Some(pool) = pool {
-    query = query.filter(token_address.eq(pool));
+    let pools = pool.split(",");
+    for p in pools {
+      query = query.or_filter(token_address.eq(p));
+    }
   }
 
   if let Some(address) = address {
