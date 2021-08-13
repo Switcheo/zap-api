@@ -442,7 +442,10 @@ pub fn get_transactions(
   let mut query = pool_txs.into_boxed::<Pg>();
 
   if let Some(pool) = pool {
-    query = query.filter(token_address.eq(pool));
+    let pools = pool.split(",");
+    for p in pools {
+      query = query.or_filter(token_address.eq(p));
+    }
   }
 
   if let Some(address) = address {
