@@ -260,7 +260,7 @@ async fn generate_epoch(
           )
         }).collect()
       } else {
-        let pool_weights = distr.incentived_pools();
+        let pool_weights = distr.incentivized_pools();
         let total_weight: u32 = pool_weights.values().into_iter().sum();
         db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
           if let Some(weight) = pool_weights.get(&i.pool) {
@@ -396,7 +396,7 @@ async fn get_distribution_amounts(
             )
           }).collect()
         } else {
-          let pool_weights = distr.incentived_pools();
+          let pool_weights = distr.incentivized_pools();
           let total_weight: u32 = pool_weights.values().into_iter().sum();
           db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
             if let Some(weight) = pool_weights.get(&i.pool) {

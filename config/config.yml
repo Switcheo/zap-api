@@ -18,7 +18,7 @@ mainnet:
         initial_epoch_number: 2
         developer_token_ratio_bps: 1500
         trader_token_ratio_bps: 2000
-      incentived_pools:
+      incentivized_pools:
         zil1p5suryq6q647usxczale29cu3336hhp376c627: 70 # ZWAP
         zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 7  # gZIL
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 7  # XSGD
@@ -48,7 +48,7 @@ testnet:
         initial_epoch_number: 1
         developer_token_ratio_bps: 1500
         trader_token_ratio_bps: 2000
-      incentived_pools:
+      incentivized_pools:
         zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
         zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
         zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP

@@ -73,7 +73,7 @@ pub struct DistributionConfig {
   distributor_address_hex: String,
   developer_address: String,
   emission_info: EmissionConfig,
-  incentived_pools: HashMap<String, u32>,
+  incentivized_pools: HashMap<String, u32>,
 }
 
 impl DistributionConfig {
@@ -89,8 +89,8 @@ impl DistributionConfig {
     self.distributor_address_hex.as_str()
   }
 
-  pub fn incentived_pools(&self) -> HashMap<String, u32> {
-    self.incentived_pools.clone()
+  pub fn incentivized_pools(&self) -> HashMap<String, u32> {
+    self.incentivized_pools.clone()
   }
 }
 
