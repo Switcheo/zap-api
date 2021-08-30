@@ -126,7 +126,7 @@ pub fn get_claims(
   page: Option<i64>,
 ) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
   use crate::schema::claims::dsl::*;
-  
+
   let mut query = claims.into_boxed::<Pg>();
 
   if let Some(address) = address {
@@ -579,7 +579,7 @@ pub fn insert_backfill_completion(
   if let Err(e) = res {
     match e {
       diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-        println!("Ignoring duplicate backfill_completion entry!"),
+        debug!("Ignoring duplicate backfill_completion entry"),
       _ => return Err(e)
     }
   }

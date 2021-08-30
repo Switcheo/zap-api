@@ -48,7 +48,7 @@ impl Actor for Coordinator {
   type Context = Context<Self>;
 
   fn started(&mut self, ctx: &mut Self::Context) {
-    println!("Coordinator is alive!");
+    info!("Coordinator started up.");
     let config = self.config.clone();
     let db_pool = self.db_pool.clone();
     let address = ctx.address();
@@ -64,7 +64,7 @@ impl Actor for Coordinator {
   }
 
   fn stopped(&mut self, _: &mut Self::Context) {
-    println!("Coordinator died!");
+    warn!("Coordinator died!");
   }
 }
 
@@ -208,7 +208,7 @@ impl EventFetchActor {
   }
 
   fn get_and_parse(&mut self, contract_hash: &str, event: Event, page_number: u16) -> Result<responses::ViewBlockResponse, FetchError> {
-    println!("Fetching {} for {} page {}", event, contract_hash, page_number);
+    info!("Fetching {} for {} page {}", event, contract_hash, page_number);
 
     let url = Url::parse_with_params(
       format!(
@@ -226,8 +226,8 @@ impl EventFetchActor {
     let resp = self.client.get(url).send()?;
     let body = resp.text()?;
 
-    println!("Parsing {} for {} page {}", event, contract_hash, page_number);
-    // println!("{}", body);
+    debug!("Parsing {} for {} page {}", event, contract_hash, page_number);
+    trace!("{}", body);
     let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
 
     return Ok(result)
@@ -238,7 +238,7 @@ impl Actor for EventFetchActor {
   type Context = SyncContext<Self>;
 
   fn started(&mut self, _: &mut SyncContext<Self>) {
-    println!("Event fetch actor started up")
+    info!("Event fetch actor started up.")
   }
 }
 
@@ -253,7 +253,7 @@ impl Handler<Fetch> for EventFetchActor {
       let conn = self.db_pool.get().expect("couldn't get db connection from pool");
 
       if result.txs.len() == 0 {
-        println!("Done with {} events.", event);
+        info!("Done with {} events.", event);
         db::insert_backfill_completion(models::NewBackfillCompletion { contract_address: contract_hash, event_name: event.to_string().as_str() }, &conn)?;
         return Ok(NextFetch::poll(&msg));
       }
@@ -268,18 +268,19 @@ impl Handler<Fetch> for EventFetchActor {
           };
           if let Err(err) = persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
             if db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
-              println!("Fetched till last inserted {} event.", event);
+              info!("Fetched till last inserted {} event.", event);
               return Ok(NextFetch::poll(&msg));
             }
             match err {
-              diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => println!("Ignoring duplicate entry!"),
+              diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
+                debug!("Ignoring duplicate {} entry", event),
               _ => return Err(FetchError::from(err))
             }
           }
         }
       }
 
-      println!("Next page..");
+      debug!("Going to next page of {}.", event);
       return Ok(NextFetch::paginate(&msg));
     };
 
@@ -288,8 +289,8 @@ impl Handler<Fetch> for EventFetchActor {
     match result {
       Ok(next_msg) => self.coordinator.do_send(next_msg),
       Err(e) => {
-        println!("{:#?}", e);
-        println!("Unhandled error while fetching, retrying in 10 seconds..");
+        error!("{:#?}", e);
+        error!("Unhandled error while fetching, retrying in 10 seconds..");
         self.coordinator.do_send(NextFetch::retry(&msg));
       }
     }
@@ -322,7 +323,7 @@ fn persist_mint_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
     zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
   };
 
-  println!("Inserting: {:?}", add_liquidity);
+  debug!("Inserting: {:?}", add_liquidity);
   db::insert_liquidity_change(add_liquidity, &conn)
 }
 
@@ -351,7 +352,7 @@ fn persist_burn_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
     zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
   };
 
-  println!("Inserting: {:?}", remove_liquidity);
+  debug!("Inserting: {:?}", remove_liquidity);
   db::insert_liquidity_change(remove_liquidity, &conn)
 }
 
@@ -399,7 +400,7 @@ fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
     is_sending_zil: &is_sending_zil,
   };
 
-  println!("Inserting: {:?}", new_swap);
+  debug!("Inserting: {:?}", new_swap);
   db::insert_swap(new_swap, &conn)
 }
 
@@ -423,6 +424,6 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
     epoch_number: &epoch_number.parse::<i32>().expect("Malformed response"),
   };
 
-  println!("Inserting: {:?}", new_claim);
+  debug!("Inserting: {:?}", new_claim);
   db::insert_claim(new_claim, &conn)
 }

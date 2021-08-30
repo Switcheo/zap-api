@@ -289,11 +289,11 @@ fn hash(address: &Vec::<u8>, amount: &BigDecimal) -> Vec<u8> {
   let (_sign, bytes) = big.to_bytes_be();
   let zeroes = vec![0; 16 - bytes.len()];
   let amount_bytes = [zeroes, bytes].concat();
-  // println!("amount_bytes: {:?}", amount_bytes);
+  trace!("amount_bytes: {:?}", amount_bytes);
 
   // hash the amount bytes
   let digest = digest::digest(&digest::SHA256, &amount_bytes);
-  // println!("digest: {:?}", digest);
+  trace!("digest: {:?}", digest);
   let amount_hash = digest.as_ref();
 
   // concat 20 address bytes to the 32 bytes amount hash
@@ -301,8 +301,8 @@ fn hash(address: &Vec::<u8>, amount: &BigDecimal) -> Vec<u8> {
 
   // debug: hash the concatted value
   let final_hash = digest::digest(&digest::SHA256, &value_to_hash);
-  // println!("value to hash: {}", encode(value_to_hash.to_vec()));
-  // println!("final hash: {}", encode(final_hash.as_ref().to_vec()));
+  trace!("value to hash: {}", encode(value_to_hash.to_vec()));
+  trace!("final hash: {}", encode(final_hash.as_ref().to_vec()));
 
   final_hash.as_ref().to_vec()
 }
@@ -311,7 +311,7 @@ type Data = (Option<Distribution>, Vec<u8>);
 type MerkleTree = Tree<Data>;
 
 pub fn construct_merkle_tree(data: Vec<Distribution>) -> MerkleTree {
-  // println!("Build tree:");
+  trace!("Build tree:");
   let mut leaves: Vec<MerkleTree> = vec![];
   for d in data.into_iter() {
     let hash = d.hash.clone();
@@ -321,7 +321,7 @@ pub fn construct_merkle_tree(data: Vec<Distribution>) -> MerkleTree {
 }
 
 fn build_parents(mut input: Vec<MerkleTree>) -> MerkleTree {
-  // println!("Build parents:");
+  trace!("Build parents:");
   input.sort_by_key(|c| c.data().1.clone()); // sort by hash
   let mut children = std::collections::VecDeque::from(input);
   let mut nodes: Vec<MerkleTree> = vec![];
@@ -332,17 +332,17 @@ fn build_parents(mut input: Vec<MerkleTree>) -> MerkleTree {
         let maybe_c2 = children.pop_front();
         match maybe_c2 {
           Some(c2) => {
-            // println!("Joining:\n{:?}\n{:?}", encode(c1.data().1.clone()), encode(c2.data().1.clone()));
+            trace!("Joining:\n{:?}\n{:?}", encode(c1.data().1.clone()), encode(c2.data().1.clone()));
             let concat = [c1.data().1.clone(), c2.data().1.clone()].concat();
             let hash = digest::digest(&digest::SHA256, &concat);
-            // println!("Hash:\n{:?}", encode(hash.as_ref().to_vec()));
+            trace!("Hash:\n{:?}", encode(hash.as_ref().to_vec()));
             let mut parent = MerkleTree::new((None, hash.as_ref().to_vec()));
             parent.push_back(c1);
             parent.push_back(c2);
             nodes.push(parent);
           }
           None => {
-            // println!("Orphan:\n{:?}", encode(c1.data().1.clone()));
+            trace!("Orphan:\n{:?}", encode(c1.data().1.clone()));
             nodes.push(c1)
           }
         }

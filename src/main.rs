@@ -10,6 +10,9 @@ extern crate diesel;
 extern crate diesel_migrations;
 embed_migrations!();
 
+#[macro_use]
+extern crate log;
+
 use actix::{Actor};
 use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
@@ -216,6 +219,10 @@ async fn generate_epoch(
   let conn = pool.get().expect("couldn't get db connection from pool");
 
   let result = web::block(move || {
+    if !var_enabled("RUN_GENERATE") {
+      return Ok(String::from("Epoch generation disabled!"))
+    }
+
     let distr = distr_config[id].clone();
     let current_epoch = EpochInfo::new(distr.emission(), None);
     let current_epoch_number = current_epoch.epoch_number();
@@ -498,12 +505,19 @@ async fn get_claims(
   Ok(HttpResponse::Ok().json(claims))
 }
 
+fn var_enabled(var_str: &str) -> bool {
+  let run = std::env::var(var_str).unwrap_or(String::from("false"));
+  if run == "true" || run == "t" || run == "1" {
+    return true
+  }
+  false
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-  std::env::set_var("RUST_LOG", "actix_web=info");
-  env_logger::init();
   let env_path = std::env::var("ENV_FILE").unwrap_or(String::from("./.env"));
   dotenv::from_path(env_path).ok();
+  env_logger::init_from_env(env_logger::Env::default().default_filter_or("zap_api=debug,actix_web=info")); // override with RUST_LOG env
 
   // set up database connection pool
   let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL env var missing.");
@@ -539,13 +553,18 @@ async fn main() -> std::io::Result<()> {
   // get number of threads to run
   let threads_str = std::env::var("SERVER_THREADS").unwrap_or(String::from(""));
 
-  // run migrations
+  // get conn pool
   let conn = pool.get().expect("couldn't get db connection from pool");
-  embedded_migrations::run(&conn).expect("failed to run migrations.");
+
+  // run migrations
+  if var_enabled("RUN_MIGRATIONS") {
+    info!("Running migrations..");
+    embedded_migrations::run(&conn).expect("failed to run migrations.");
+  }
 
   // run worker
-  let run_worker = std::env::var("RUN_WORKER").unwrap_or(String::from("false"));
-  if run_worker == "true" || run_worker == "t" || run_worker == "1" {
+  if var_enabled("RUN_WORKER") {
+    info!("Running worker..");
     let _addr = worker::Coordinator::new(worker_config, pool.clone()).start();
   }
 
@@ -577,12 +596,12 @@ async fn main() -> std::io::Result<()> {
   });
 
   if let Ok(threads) = threads_str.parse::<usize>() {
-    println!("running server with {} threads", threads);
+    info!("Going to run server with {} threads..", threads);
     server = server.workers(threads);
   } else {
-    println!("running server with default threads");
+    info!("Going to run server with default threads..");
   }
-  println!("Starting server at: {}", &bind);
+  info!("Starting server at {}", &bind);
 
   server.bind(bind)?
     .run()

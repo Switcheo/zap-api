@@ -19,6 +19,7 @@ diesel_migrations = "1.4.0"
 dotenv = "^0.15.0"
 env_logger = "^0.8.2"
 hex = "^0.4.2"
+log = "0.4"
 num-bigint = "^0.2.6"
 trees = "^0.4.1"
 reqwest = { version = "^0.10.9", features = ["blocking", "json"] }
