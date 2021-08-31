@@ -317,6 +317,8 @@ async fn generate_epoch(
     let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
     if total_distributed > epoch_info.tokens_for_epoch() {
       panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
+    } else {
+      info!("Total distirbuted tokens: {} out of max of {}", total_distributed, epoch_info.tokens_for_epoch());
     }
 
     let leaves = Distribution::from(accumulator);

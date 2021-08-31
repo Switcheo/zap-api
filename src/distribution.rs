@@ -81,6 +81,10 @@ impl DistributionConfig {
     self.emission_info.clone()
   }
 
+  pub fn name(&self) -> &str {
+    self.name.as_str()
+  }
+
   pub fn developer_address(&self) -> &str {
     self.developer_address.as_str()
   }

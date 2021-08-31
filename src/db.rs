@@ -402,7 +402,7 @@ pub fn get_time_weighted_liquidity_by_address(
     data AS (
       SELECT
         *,
-        EXTRACT(EPOCH FROM (end_timestamp - GREATEST(start_timestamp, $1 + INTERVAL '1 second'))) / 3600 * current AS weighted_liquidity
+        (EXTRACT(EPOCH FROM (end_timestamp - GREATEST(start_timestamp, $1 + INTERVAL '1 second'))) - 1) / 3600 * current AS weighted_liquidity
       FROM t
     )
     SELECT
