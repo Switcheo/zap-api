@@ -267,13 +267,14 @@ impl Handler<Fetch> for EventFetchActor {
             Event::Claimed => persist_claim_event,
           };
           if let Err(err) = persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
-            if db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
-              info!("Fetched till last inserted {} event.", event);
-              return Ok(NextFetch::poll(&msg));
-            }
             match err {
-              diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-                debug!("Ignoring duplicate {} entry", event),
+              diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
+                if db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
+                  info!("Fetched till last inserted {} event.", event);
+                  return Ok(NextFetch::poll(&msg));
+                }
+                debug!("Ignoring duplicate {} entry", event)
+              },
               _ => return Err(FetchError::from(err))
             }
           }
