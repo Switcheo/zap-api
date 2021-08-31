@@ -507,7 +507,7 @@ async fn main() -> std::io::Result<()> {
     "mainnet" => Network::MainNet,
     _ => panic!("Invalid network string")
   };
-  
+
   // get number of threads to run
   let threads_str = std::env::var("SERVER_THREADS").unwrap_or(String::from(""));
 
@@ -547,7 +547,7 @@ async fn main() -> std::io::Result<()> {
       .service(get_liquidity)
       .service(get_weighted_liquidity)
   });
-  
+
   if let Ok(threads) = threads_str.parse::<usize>() {
     println!("running server with {} threads", threads);
     server = server.workers(threads);
