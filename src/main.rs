@@ -210,7 +210,7 @@ async fn get_weighted_liquidity(
 // 2. get time weighted liquidity from start_time to end_time for each address that has liquidity at start_time
 // split reward by pool and time weighted liquidity
 // if epoch 0, get swap_volume and split additional reward by volume
-#[get("epoch/generate/{id}")]
+#[get("distribution/generate/{id}")]
 async fn generate_epoch(
   pool: web::Data<DbPool>,
   distr_config: web::Data<DistributionConfigs>,
@@ -456,8 +456,7 @@ async fn get_distribution_amounts(
 async fn get_distribution_data(
   pool: web::Data<DbPool>,
   filter: web::Query<AddressInfo>,
-  web::Path(distributor_address): web::Path<String>,
-  web::Path(epoch_number): web::Path<i32>,
+  web::Path((distributor_address, epoch_number)): web::Path<(String, i32)>,
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
