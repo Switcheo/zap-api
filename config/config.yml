@@ -54,8 +54,8 @@ testnet:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: 6250_000_000_000_000
         tokens_for_retroactive_distribution: 50000_000_000_000_000
-        retroactive_distribution_cutoff_time: 1628230000
-        distribution_start_time: 1628240000
+        retroactive_distribution_cutoff_time: 1630353600
+        distribution_start_time: 1630440000
         total_number_of_epochs: 0
         initial_epoch_number: 1
         developer_token_ratio_bps: 1500
@@ -74,8 +74,8 @@ testnet:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: 6250_000_000_000_000
         tokens_for_retroactive_distribution: 50000_000_000_000_000
-        retroactive_distribution_cutoff_time: 1628230000
-        distribution_start_time: 1628240000
+        retroactive_distribution_cutoff_time: 1630353600
+        distribution_start_time: 1630440000
         total_number_of_epochs: 152
         initial_epoch_number: 1
         developer_token_ratio_bps: 1500
