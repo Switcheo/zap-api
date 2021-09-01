@@ -37,7 +37,7 @@ impl Validate for EmissionConfig {
     if self.retroactive_distribution_cutoff_time > 0 && self.initial_epoch_number < 1 {
       errs.push("initial_epoch_number must be more than 0")
     }
-    if self.total_number_of_epochs == 0 {
+    if self.retroactive_distribution_cutoff_time == 0 && self.total_number_of_epochs == 0 {
       errs.push("total_number_of_epochs must be more than 0")
     }
     match BigDecimal::from_str(self.tokens_for_retroactive_distribution.as_str()) {
