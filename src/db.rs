@@ -608,11 +608,12 @@ pub fn liquidity_change_exists(
 
 pub fn epoch_exists(
   conn: &PgConnection,
+  distr_address: &str,
   epoch: &i32,
 ) -> Result<bool, diesel::result::Error> {
   use crate::schema::distributions::dsl::*;
 
-  Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch))))
+  Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch)).filter(distributor_address.eq(distr_address))))
     .get_result(conn)?)
 }
 

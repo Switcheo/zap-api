@@ -245,7 +245,7 @@ async fn generate_epoch(
       return Ok(String::from("Epoch not yet over!"))
     }
 
-    if db::epoch_exists(&conn, &epoch_number)? {
+    if db::epoch_exists(&conn, distr.distributor_address(), &epoch_number)? {
       return Ok(String::from("Epoch already generated!"))
     }
 
@@ -318,15 +318,16 @@ async fn generate_epoch(
     if total_distributed > epoch_info.tokens_for_epoch() {
       panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
     } else {
-      info!("Total distirbuted tokens: {} out of max of {}", total_distributed, epoch_info.tokens_for_epoch());
+      info!("Total distributed tokens: {} out of max of {}", total_distributed, epoch_info.tokens_for_epoch());
     }
 
     let leaves = Distribution::from(accumulator);
     let tree = distribution::construct_merkle_tree(leaves);
     let proofs = distribution::get_proofs(tree.clone());
+    let distributor_address = distr.distributor_address();
     let records: Vec<models::NewDistribution> = proofs.iter().map(|(d, p)| {
       models::NewDistribution{
-        distributor_address: distr.distributor_address(),
+        distributor_address: &distributor_address,
         epoch_number: &epoch_number,
         address_bech32: d.address_bech32(),
         address_hex: d.address_hex(),
@@ -335,7 +336,7 @@ async fn generate_epoch(
       }
     }).collect();
 
-    if db::epoch_exists(&conn, &epoch_number)? {
+    if db::epoch_exists(&conn, &distributor_address, &epoch_number)? {
       return Ok(String::from("Epoch already generated!"))
     }
 
