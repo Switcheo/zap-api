@@ -16,6 +16,7 @@ table! {
         initiator_address -> Varchar,
         distributor_address -> Varchar,
         epoch_number -> Int4,
+        amount -> Numeric,
     }
 }
 

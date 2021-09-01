@@ -413,7 +413,7 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
 
   let epoch_number = event.params.get("epoch_number").unwrap().as_str().expect("Malformed response!");
   let address = event.params.pointer("/data/0/params/0").unwrap().as_str().expect("Malformed response!");
-  // let amount = event.params.pointer("/data/0/params/1").unwrap().as_str().expect("Malformed response!");
+  let amount = event.params.pointer("/data/0/params/1").unwrap().as_str().expect("Malformed response!");
 
   let new_claim = models::NewClaim {
     transaction_hash: &tx.hash,
@@ -423,6 +423,7 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
     initiator_address: address,
     distributor_address: &event.address,
     epoch_number: &epoch_number.parse::<i32>().expect("Malformed response"),
+    amount: &BigDecimal::from_str(amount).unwrap(),
   };
 
   debug!("Inserting: {:?}", new_claim);

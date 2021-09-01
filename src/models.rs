@@ -159,6 +159,7 @@ pub struct Claim {
   pub initiator_address: String,
   pub distributor_address: String,
   pub epoch_number: i32,
+  pub amount: BigDecimal,
 }
 
 #[derive(Debug, Clone, Insertable)]
@@ -171,6 +172,7 @@ pub struct NewClaim<'a> {
   pub initiator_address: &'a str,
   pub distributor_address: &'a str,
   pub epoch_number: &'a i32,
+  pub amount: &'a BigDecimal,
 }
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
