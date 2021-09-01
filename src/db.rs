@@ -117,11 +117,30 @@ pub fn get_distributions_by_address(
   Ok(query.load(conn)?)
 }
 
+/// Get a single claim by address, distributor address and epoch number
+pub fn get_claim(
+  conn: &PgConnection,
+  address: &str,
+  distr_address: &str,
+  epoch: &i32,
+) -> Result<Option<models::Claim>, diesel::result::Error> {
+  use crate::schema::claims::dsl::*;
+
+  Ok(claims
+    .filter(initiator_address.eq(address))
+    .filter(distributor_address.eq(distr_address))
+    .filter(epoch_number.eq(epoch))
+    .first(conn)
+    .optional()
+    .unwrap())
+}
+
 /// Get all claims, optionally filtered by address and/or distributor address
 pub fn get_claims(
   conn: &PgConnection,
   address: Option<&str>,
   distr_address: Option<&str>,
+  epoch: Option<&i32>,
   per_page: Option<i64>,
   page: Option<i64>,
 ) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
@@ -135,6 +154,10 @@ pub fn get_claims(
 
   if let Some(distr_address) = distr_address {
     query = query.filter(distributor_address.eq(distr_address));
+  }
+
+  if let Some(epoch) = epoch {
+    query = query.filter(epoch_number.eq(epoch));
   }
 
   Ok(query

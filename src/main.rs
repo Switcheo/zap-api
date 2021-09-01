@@ -23,7 +23,7 @@ use hex::{encode};
 use serde::{Deserialize};
 use std::collections::HashMap;
 use std::time::{SystemTime};
-use std::str;
+use std::str::{FromStr};
 
 mod db;
 mod constants;
@@ -75,6 +75,7 @@ struct PeriodInfo {
 struct ClaimInfo {
   address: Option<String>,
   distr_address: Option<String>,
+  epoch_number: Option<i32>,
 }
 
 /// Test endpoint.
@@ -285,11 +286,39 @@ async fn generate_epoch(
 
     let mut accumulator: HashMap<String, BigDecimal> = HashMap::new();
 
+    let mut outstanding =
+      if let Ok(da) = std::env::var("REDUCE_CLAIMS_FOR_DISTRIBUTOR_ADDRESS") {
+        if da == distr.distributor_address() {
+          if let Ok(en) = std::env::var("REDUCE_CLAIMS_FOR_EPOCH_NUMBER") {
+            if en.parse::<i32>().unwrap() == epoch_number {
+              if let Ok(ta) = std::env::var("REDUCE_CLAIMS_TARGET") {
+                BigDecimal::from_str(&ta).unwrap()
+              } else { BigDecimal::default() }
+            } else { BigDecimal::default() }
+          } else { BigDecimal::default() }
+        } else { BigDecimal::default() }
+      } else { BigDecimal::default() };
+
     // for each individual TWAL, calculate the tokens
     let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
     for l in user_liquidity.into_iter() {
       if let Some(pool) = distribution.get(&l.pool) {
-        let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+        let mut share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+        if outstanding.is_positive() {
+          if let Ok(en) = std::env::var("REDUCE_CLAIMED_EPOCH_NUMBER") {
+            if let Ok(da) = std::env::var("REDUCE_CLAIMED_DISTRIBUTOR_ADDRESS") {
+              if let Some(c) = db::get_claim(&conn, &l.address, &da, &en.parse::<i32>().unwrap()).unwrap() {
+                if share > c.amount {
+                  outstanding -= &c.amount;
+                  share -= c.amount
+                } else {
+                  outstanding -= share;
+                  continue
+                }
+              }
+            }
+          }
+        }
         let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
         *current += share
       }
@@ -308,10 +337,12 @@ async fn generate_epoch(
     }
 
     // add developer share
-    let dt = epoch_info.tokens_for_developers();
+    let dt = epoch_info.tokens_for_developers() - outstanding;
     if dt.is_positive() {
       let current = accumulator.entry(distr.developer_address().to_owned()).or_insert(BigDecimal::default());
       *current += dt
+    } else if dt.is_negative() {
+      panic!("Outstanding > dev tokens!")
     }
 
     let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
@@ -497,7 +528,7 @@ async fn get_claims(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), pagination.per_page, pagination.page))
+  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), filter.epoch_number.as_ref(), pagination.per_page, pagination.page))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
