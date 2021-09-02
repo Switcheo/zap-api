@@ -306,7 +306,7 @@ async fn generate_epoch(
         let mut share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
         if outstanding.is_positive() {
           if let Ok(en) = std::env::var("REDUCE_CLAIMED_EPOCH_NUMBER") {
-            if let Ok(da) = std::env::var("REDUCE_CLAIMED_DISTRIBUTOR_ADDRESS") {
+            if let Ok(da) = std::env::var("REDUCE_CLAIMED_DISTRIBUTOR_ADDRESS_BECH32") {
               if let Some(c) = db::get_claim(&conn, &l.address, &da, &en.parse::<i32>().unwrap()).unwrap() {
                 if share > c.amount {
                   outstanding -= &c.amount;
@@ -337,12 +337,12 @@ async fn generate_epoch(
     }
 
     // add developer share
-    let dt = epoch_info.tokens_for_developers() - outstanding;
+    let dt = epoch_info.tokens_for_developers() - &outstanding;
     if dt.is_positive() {
       let current = accumulator.entry(distr.developer_address().to_owned()).or_insert(BigDecimal::default());
       *current += dt
     } else if dt.is_negative() {
-      panic!("Outstanding > dev tokens!")
+      panic!("Outstanding > dev tokens! {}, {}", outstanding, epoch_info.tokens_for_developers())
     }
 
     let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
