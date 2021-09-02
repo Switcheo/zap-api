@@ -1,7 +1,9 @@
 use actix::prelude::*;
+use bech32::{decode, FromBase32};
 use bigdecimal::{BigDecimal};
 use diesel::PgConnection;
 use diesel::r2d2::{Pool, ConnectionManager};
+use hex::{encode};
 use reqwest::blocking::Client;
 use reqwest::header::{HeaderMap, HeaderValue};
 use reqwest::Url;
@@ -414,6 +416,9 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
   let epoch_number = event.params.get("epoch_number").unwrap().as_str().expect("Malformed response!");
   let address = event.params.pointer("/data/0/params/0").unwrap().as_str().expect("Malformed response!");
   let amount = event.params.pointer("/data/0/params/1").unwrap().as_str().expect("Malformed response!");
+  let (_hrp, data) = decode(&event.address).expect("Could not decode bech32 address string!");
+  let bytes = Vec::<u8>::from_base32(&data).unwrap();
+  let distributor_address = format!("0x{}", encode(&bytes));
 
   let new_claim = models::NewClaim {
     transaction_hash: &tx.hash,
@@ -421,7 +426,7 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
     block_height: &tx.block_height,
     block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
     initiator_address: address,
-    distributor_address: &event.address,
+    distributor_address: &distributor_address,
     epoch_number: &epoch_number.parse::<i32>().expect("Malformed response"),
     amount: &BigDecimal::from_str(amount).unwrap(),
   };
