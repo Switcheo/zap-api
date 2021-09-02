@@ -359,7 +359,7 @@ pub fn get_time_weighted_liquidity(
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
       {}
@@ -419,7 +419,7 @@ pub fn get_time_weighted_liquidity_by_address(
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
       WINDOW w AS (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC)
