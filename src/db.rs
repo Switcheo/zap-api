@@ -1,4 +1,4 @@
-
+use diesel::debug_query;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::dsl::{sql, exists};
@@ -389,6 +389,8 @@ pub fn get_time_weighted_liquidity(
     .bind::<Timestamp, _>(end_dt)
     .bind::<Text, _>(address.unwrap_or(&noop));
 
+  trace!("{}", debug_query(&query).to_string());
+
   Ok(query.load::<models::Liquidity>(conn)?)
 }
 
@@ -446,6 +448,8 @@ pub fn get_time_weighted_liquidity_by_address(
   let query = diesel::sql_query(sql)
     .bind::<Timestamp, _>(start_dt)
     .bind::<Timestamp, _>(end_dt);
+
+  trace!("{}", debug_query(&query).to_string());
 
   Ok(query.load::<models::LiquidityFromProvider>(conn)?)
 }
