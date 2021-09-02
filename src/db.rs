@@ -180,6 +180,7 @@ pub fn get_unclaimed_distributions_by_address(
     LEFT OUTER JOIN claims c
     ON d.distributor_address = c.distributor_address
     AND d.epoch_number = c.epoch_number
+    AND d.address_bech32 = c.initiator_address
     WHERE address_bech32 = $1
     AND c.id IS NULL
   ";
