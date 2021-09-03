@@ -41,6 +41,24 @@ mainnet:
         zil1c6akv8k6dqaac7ft8ezk5gr2jtxrewfw8hc27d: 1  # DUCK
         zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
         zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v: 1  # SRV
+    - name: "STREAM Rewards"
+      reward_token_symbol: STREAM
+      reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
+      distributor_name: ZilStream
+      distributor_address_hex: "0x3041453425a7a61bf075fb780e73c4fcbdd203ae"
+      developer_address: zil1xsfg85lm208juqlxjjl82dyft3aad0y0w4sytn
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "2403800000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1630483200
+        total_number_of_epochs: 197
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 1  # STREAM
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
