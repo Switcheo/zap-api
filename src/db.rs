@@ -1,4 +1,4 @@
-
+use diesel::debug_query;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::dsl::{sql, exists};
@@ -117,11 +117,30 @@ pub fn get_distributions_by_address(
   Ok(query.load(conn)?)
 }
 
+/// Get a single claim by address, distributor address and epoch number
+pub fn get_claim(
+  conn: &PgConnection,
+  address: &str,
+  distr_address: &str,
+  epoch: &i32,
+) -> Result<Option<models::Claim>, diesel::result::Error> {
+  use crate::schema::claims::dsl::*;
+
+  Ok(claims
+    .filter(initiator_address.eq(address))
+    .filter(distributor_address.eq(distr_address))
+    .filter(epoch_number.eq(epoch))
+    .first(conn)
+    .optional()
+    .unwrap())
+}
+
 /// Get all claims, optionally filtered by address and/or distributor address
 pub fn get_claims(
   conn: &PgConnection,
   address: Option<&str>,
   distr_address: Option<&str>,
+  epoch: Option<&i32>,
   per_page: Option<i64>,
   page: Option<i64>,
 ) -> Result<PaginatedResult<models::Claim>, diesel::result::Error> {
@@ -135,6 +154,10 @@ pub fn get_claims(
 
   if let Some(distr_address) = distr_address {
     query = query.filter(distributor_address.eq(distr_address));
+  }
+
+  if let Some(epoch) = epoch {
+    query = query.filter(epoch_number.eq(epoch));
   }
 
   Ok(query
@@ -157,6 +180,7 @@ pub fn get_unclaimed_distributions_by_address(
     LEFT OUTER JOIN claims c
     ON d.distributor_address = c.distributor_address
     AND d.epoch_number = c.epoch_number
+    AND d.address_bech32 = c.initiator_address
     WHERE address_bech32 = $1
     AND c.id IS NULL
   ";
@@ -336,7 +360,7 @@ pub fn get_time_weighted_liquidity(
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
       {}
@@ -366,6 +390,8 @@ pub fn get_time_weighted_liquidity(
     .bind::<Timestamp, _>(end_dt)
     .bind::<Text, _>(address.unwrap_or(&noop));
 
+  trace!("{}", debug_query(&query).to_string());
+
   Ok(query.load::<models::Liquidity>(conn)?)
 }
 
@@ -394,7 +420,7 @@ pub fn get_time_weighted_liquidity_by_address(
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
       WINDOW w AS (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC)
@@ -423,6 +449,8 @@ pub fn get_time_weighted_liquidity_by_address(
   let query = diesel::sql_query(sql)
     .bind::<Timestamp, _>(start_dt)
     .bind::<Timestamp, _>(end_dt);
+
+  trace!("{}", debug_query(&query).to_string());
 
   Ok(query.load::<models::LiquidityFromProvider>(conn)?)
 }

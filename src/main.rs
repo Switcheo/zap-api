@@ -23,7 +23,6 @@ use hex::{encode};
 use serde::{Deserialize};
 use std::collections::HashMap;
 use std::time::{SystemTime};
-use std::str;
 
 mod db;
 mod constants;
@@ -75,6 +74,7 @@ struct PeriodInfo {
 struct ClaimInfo {
   address: Option<String>,
   distr_address: Option<String>,
+  epoch_number: Option<i32>,
 }
 
 /// Test endpoint.
@@ -497,7 +497,7 @@ async fn get_claims(
 ) -> Result<HttpResponse, Error> {
   let conn = pool.get().expect("couldn't get db connection from pool");
 
-  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), pagination.per_page, pagination.page))
+  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), filter.epoch_number.as_ref(), pagination.per_page, pagination.page))
       .await
       .map_err(|e| {
           eprintln!("{}", e);
