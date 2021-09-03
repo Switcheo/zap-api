@@ -4,7 +4,7 @@ mainnet:
   distributions:
     - name: "ZWAP Rewards Legacy"
       reward_token_symbol: ZWAP
-      reward_token_address_hex: "0xba11eb7bcc0a02e947acf03cc651bfaf19c9ec00"
+      reward_token_address_hex: "0x0d21c1901a06abee40d8177f95171c8c63abdc31"
       distributor_name: Zilswap
       distributor_address_hex: "0x094920e3b1b8672826a4b2c601999d14eecbeb86"
       developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
@@ -21,7 +21,7 @@ mainnet:
       incentivized_pools: {}
     - name: "ZWAP Rewards"
       reward_token_symbol: ZWAP
-      reward_token_address_hex: "0xba11eb7bcc0a02e947acf03cc651bfaf19c9ec00"
+      reward_token_address_hex: "0x0d21c1901a06abee40d8177f95171c8c63abdc31"
       distributor_name: Zilswap
       distributor_address_hex: "0x3b01123a67a7a52405ec7cf3083faca65056aec1"
       developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
