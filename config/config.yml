@@ -62,7 +62,7 @@ mainnet:
       reward_token_symbol: STREAM
       reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
       distributor_name: ZilStream
-      distributor_address_hex: "0x3041453425a7a61bf075fb780e73c4fcbdd203ae"
+      distributor_address_hex: "0xbcd0dd456d35a1e855c5f1c95a3cb60e3140af7d"
       developer_address: zil1xsfg85lm208juqlxjjl82dyft3aad0y0w4sytn
       emission_info:
         epoch_period: 604800 # 1 week
