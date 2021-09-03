@@ -58,6 +58,24 @@ mainnet:
         zil1c6akv8k6dqaac7ft8ezk5gr2jtxrewfw8hc27d: 1  # DUCK
         zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
         zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v: 1  # SRV
+    - name: "BLOX Liquidity Rewards"
+      reward_token_symbol: BLOX
+      reward_token_address_hex: "0x4268C34dA6Ad41a4cDeAa25cdEF6531Ed0c9a1A2"
+      distributor_name: BLOX
+      distributor_address_hex: "0x1b3F8C7493D07ea8927d4f6dAdB5289A9b111930"
+      developer_address: zil1gy9v2fy4nsa5n5mx7grtt5sn205d6qduxkl84t
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "1086900"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1630483200
+        total_number_of_epochs: 87
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 1  # BLOX
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
