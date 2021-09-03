@@ -6,7 +6,7 @@ mainnet:
       reward_token_symbol: ZWAP
       reward_token_address_hex: "0x0d21c1901a06abee40d8177f95171c8c63abdc31"
       distributor_name: Zilswap
-      distributor_address_hex: "0x094920e3b1b8672826a4b2c601999d14eecbeb86"
+      distributor_address_hex: "0xe499fe6c9e4085198a3355362c2bb120fc8d43fa"
       developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
       emission_info:
         epoch_period: 604800 # 1 week
@@ -23,7 +23,7 @@ mainnet:
       reward_token_symbol: ZWAP
       reward_token_address_hex: "0x0d21c1901a06abee40d8177f95171c8c63abdc31"
       distributor_name: Zilswap
-      distributor_address_hex: "0x3b01123a67a7a52405ec7cf3083faca65056aec1"
+      distributor_address_hex: "0xe5e274f59482759c1a0c13682ff3ec3efeb22d2a"
       developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
       emission_info:
         epoch_period: 604800 # 1 week
