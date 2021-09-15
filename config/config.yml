@@ -39,16 +39,17 @@ mainnet:
         zil1p5suryq6q647usxczale29cu3336hhp376c627: 40 # ZWAP
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 5  # XSGD
         zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 4  # gZIL
-        zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 4  # PORT
+        zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 3  # PORT
         zil1kwfu3x9n6fsuxc4ynp72uk5rxge25enw7zsf9z: 3  # SCO
         zil1h63h5rlg7avatnlzhfnfzwn8vfspwkapzdy2aw: 3  # XCAD
+        zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 3  # BLOX
         zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 2  # STREAM
         zil1hau7z6rjltvjc95pphwj57umdpvv0d6kh2t8zk: 2  # CARB
-        zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 2  # BLOX
         zil1qldr63ds7yuspqcf02263y2lctmtqmr039vrht: 2  # ZPAINT
         zil1lq3ghn3yaqk0w7fqtszv53hejunpyfyh3rx9gc: 2  # Elons
         zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 2  # SPW
-        zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye: 1  # REDC
+        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 2  # DMZ
+        zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye: 2  # REDC
         zil1ucvrn22x8366vzpw5t7su6eyml2auczu6wnqqg: 1  # ZYRO
         zil1w5hwupgc9rxyuyd742g2c9annwahugrx80fw9h: 1  # GARY
         zil1l0g8u6f9g0fsvjuu74ctyla2hltefrdyt7k5f4: 1  # ZLP
@@ -60,8 +61,9 @@ mainnet:
         zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v: 1  # SRV
         zil1ykcdhtgyercmv7ndfxt00wm9xzpq4k7hjmfm4e: 1  # MAMBO
         zil12drvflckms6874ffuujcdxj75raavl4yfn4ssc: 1  # RECAP
-        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
         zil1vdc79fg75sth96xnt6xmq5f55swcd5t6m5zhvn: 1  # Yoda
+        zil108ex3na3dvwnjq5p4nls4z3gjy8fx66693hf4d: 1  # CONSULT
+        zil1rcp57nc2ue00f2hk7esxaa3j8q93xrexgrmpz7: 1  # ZILLEX
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
