@@ -62,7 +62,7 @@ mainnet:
       reward_token_symbol: BLOX
       reward_token_address_hex: "0x4268C34dA6Ad41a4cDeAa25cdEF6531Ed0c9a1A2"
       distributor_name: BLOX
-      distributor_address_hex: "0x1b3F8C7493D07ea8927d4f6dAdB5289A9b111930"
+      distributor_address_hex: "0x644590ca7de53c5275a1b5602099f3d65da4343f"
       developer_address: zil1gy9v2fy4nsa5n5mx7grtt5sn205d6qduxkl84t
       emission_info:
         epoch_period: 604800 # 1 week
