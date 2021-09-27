@@ -59,6 +59,13 @@ mainnet:
         zil1c6akv8k6dqaac7ft8ezk5gr2jtxrewfw8hc27d: 1  # DUCK
         zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
         zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v: 1  # SRV
+        zil1ykcdhtgyercmv7ndfxt00wm9xzpq4k7hjmfm4e: 1  # MAMBO
+        zil12drvflckms6874ffuujcdxj75raavl4yfn4ssc: 1  # RECAP
+        zil1vdc79fg75sth96xnt6xmq5f55swcd5t6m5zhvn: 1  # Yoda
+        zil108ex3na3dvwnjq5p4nls4z3gjy8fx66693hf4d: 1  # CONSULT
+        zil1rcp57nc2ue00f2hk7esxaa3j8q93xrexgrmpz7: 1  # ZILLEX
+        zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1  # PELE
+        zil19cyp6kj7zrz3c2q50ts2nly6hrhrr7vr89g9gf: 1  # UNIDEX
     - name: "STREAM Rewards"
       reward_token_symbol: STREAM
       reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
