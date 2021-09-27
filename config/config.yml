@@ -117,7 +117,7 @@ testnet:
         tokens_per_epoch: "10000000000000000"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1632268800
+        distribution_start_time: 1631664000
         total_number_of_epochs: 6
         initial_epoch_number: 0
         developer_token_ratio_bps: 1500
@@ -137,7 +137,7 @@ testnet:
         tokens_per_epoch: "2403800000000"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1632268800
+        distribution_start_time: 1631664000
         total_number_of_epochs: 152
         initial_epoch_number: 0
         developer_token_ratio_bps: 1500
