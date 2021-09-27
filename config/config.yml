@@ -10,8 +10,8 @@ mainnet:
       developer_address: zil1zjvc2m9f5vh8zl57su5j8lflgaq2lx08kcwdvy
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: 6250_000_000_000_000
-        tokens_for_retroactive_distribution: 50000_000_000_000_000
+        tokens_per_epoch: "6250000000000000"
+        tokens_for_retroactive_distribution: "50000000000000000"
         retroactive_distribution_cutoff_time: 1610964000
         distribution_start_time: 1612339200
         total_number_of_epochs: 29
@@ -94,14 +94,34 @@ testnet:
       developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: 6250_000_000_000_000
-        tokens_for_retroactive_distribution: 50000_000_000_000_000
+        tokens_per_epoch: "6250000000000000"
+        tokens_for_retroactive_distribution: "50000000000000000"
         retroactive_distribution_cutoff_time: 1630353600
         distribution_start_time: 1630440000
         total_number_of_epochs: 152
         initial_epoch_number: 1
         developer_token_ratio_bps: 1500
         trader_token_ratio_bps: 2000
+      incentivized_pools:
+        zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
+        zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
+        zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP
+    - name: "ZIL Rewards"
+      reward_token_symbol: ZIL
+      reward_token_address_hex: "0x0000000000000000000000000000000000000000"
+      distributor_name: Zilliqa
+      distributor_address_hex: "0x8fba0ebefc39d80819d74baf173e2f7525c131ec"
+      developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "10000000000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1632873600
+        total_number_of_epochs: 6
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 1500
+        trader_token_ratio_bps: 0
       incentivized_pools:
         zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
         zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
