@@ -117,8 +117,28 @@ testnet:
         tokens_per_epoch: "10000000000000000"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1632873600
+        distribution_start_time: 1632268800
         total_number_of_epochs: 6
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 1500
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
+        zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
+        zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP
+    - name: "STREAM Rewards"
+      reward_token_symbol: STREAM
+      reward_token_address_hex: "0x7b8a86afbde45b4e081986217e02654b551407a7"
+      distributor_name: ZilStream
+      distributor_address_hex: "0x115adedee1e498c70c1b23131e5a2b06eaef72a9"
+      developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "2403800000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1632268800
+        total_number_of_epochs: 152
         initial_epoch_number: 0
         developer_token_ratio_bps: 1500
         trader_token_ratio_bps: 0
