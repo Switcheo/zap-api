@@ -104,7 +104,7 @@ impl NextFetch {
         event: msg.event.clone(),
         page_number: 1,
       },
-      delay: 60,
+      delay: 30,
     }
   }
 
@@ -113,14 +113,14 @@ impl NextFetch {
       msg: Fetch {
         contract_hash: msg.contract_hash.clone(),
         event: msg.event.clone(),
-        page_number:  msg.page_number + 1,
+        page_number: msg.page_number + 1,
       },
       delay: 1,
     }
   }
 
   fn retry(msg: &Fetch) -> Self {
-    Self { msg: msg.clone(), delay: 10 }
+    Self { msg: msg.clone(), delay: 5 }
   }
 
   fn get_next(&self) -> Fetch {
@@ -244,7 +244,7 @@ impl Actor for EventFetchActor {
   }
 }
 
-/// Define handler for `FetchMints` message
+/// Define handler for `Fetch` message
 impl Handler<Fetch> for EventFetchActor {
   type Result = ();
 
@@ -260,6 +260,7 @@ impl Handler<Fetch> for EventFetchActor {
         return Ok(NextFetch::poll(&msg));
       }
 
+      let mut duplicate_found = false;
       for tx in result.txs {
         for (i, ev) in tx.events.iter().enumerate() {
           let persist = match event {
@@ -271,16 +272,19 @@ impl Handler<Fetch> for EventFetchActor {
           if let Err(err) = persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
             match err {
               diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                if db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
-                  info!("Fetched till last inserted {} event.", event);
-                  return Ok(NextFetch::poll(&msg));
-                }
+                // mark duplicate and continue processing other events in this fetch
+                duplicate_found = true;
                 debug!("Ignoring duplicate {} entry", event)
               },
               _ => return Err(FetchError::from(err))
             }
           }
         }
+      }
+
+      if duplicate_found && db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
+        info!("Fetched till last inserted {} event.", event);
+        return Ok(NextFetch::poll(&msg));
       }
 
       debug!("Going to next page of {}.", event);
