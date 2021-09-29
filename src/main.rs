@@ -595,7 +595,8 @@ async fn main() -> std::io::Result<()> {
       .service(get_liquidity_changes)
       .service(get_liquidity)
       .service(get_weighted_liquidity)
-  });
+  })
+  .client_timeout(0);
 
   if let Ok(threads) = threads_str.parse::<usize>() {
     info!("Going to run server with {} threads..", threads);
