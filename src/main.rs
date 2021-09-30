@@ -519,7 +519,7 @@ async fn main() -> std::io::Result<()> {
   let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL env var missing.");
   let manager = ConnectionManager::<PgConnection>::new(connspec);
   let pool = r2d2::Pool::builder()
-    .max_size(30)
+    .max_size(15)
     .build(manager)
     .expect("Failed to create db pool.");
 
