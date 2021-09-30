@@ -69,8 +69,8 @@ mainnet:
         tokens_per_epoch: "1086900"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1630483200
-        total_number_of_epochs: 87
+        distribution_start_time: 1632902400
+        total_number_of_epochs: 84
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
