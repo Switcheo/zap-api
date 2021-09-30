@@ -13,6 +13,8 @@ embed_migrations!();
 #[macro_use]
 extern crate log;
 
+extern crate redis;
+
 use actix::{Actor};
 use actix_cors::{Cors};
 use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, middleware::Logger};
@@ -23,6 +25,7 @@ use hex::{encode};
 use serde::{Deserialize};
 use std::collections::HashMap;
 use std::time::{SystemTime};
+use redis::Commands;
 
 mod db;
 mod constants;
@@ -185,10 +188,12 @@ async fn get_weighted_liquidity(
   query: web::Query<PeriodInfo>,
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
+  redis: web::Data<redis::Client>,
 ) -> Result<HttpResponse, Error> {
   let liquidity = web::block(move || {
     let conn = pool.get().expect("couldn't get db connection from pool");
-    db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_deref())
+    let mut rconn = redis.get_connection().expect("couldn't get redis connection");
+    db::get_time_weighted_liquidity(&conn, &mut rconn, query.from, query.until, filter.address.as_deref())
   })
   .await.map_err(|e| {
     eprintln!("{}", e);
@@ -210,10 +215,12 @@ async fn get_weighted_liquidity(
 async fn generate_epoch(
   pool: web::Data<DbPool>,
   distr_config: web::Data<DistributionConfigs>,
+  redis: web::Data<redis::Client>,
   web::Path(id): web::Path<usize>,
 ) -> Result<HttpResponse, Error> {
   let result = web::block(move || {
     let conn = pool.get().expect("couldn't get db connection from pool");
+    let mut rconn = redis.get_connection().expect("couldn't get redis connection");
     if !var_enabled("RUN_GENERATE") {
       return Ok(String::from("Epoch generation disabled!"))
     }
@@ -252,7 +259,7 @@ async fn generate_epoch(
     let pt = epoch_info.tokens_for_liquidity_providers();
     let distribution: HashMap<String, PoolDistribution> =
       if epoch_info.is_initial() {
-        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.amount).sum();
         db::get_pools(&conn)?.into_iter().map(|pool| {
           (pool,
             PoolDistribution{ // share distribution fully
@@ -264,7 +271,7 @@ async fn generate_epoch(
       } else {
         let pool_weights = distr.incentivized_pools();
         let total_weight: u32 = pool_weights.values().into_iter().sum();
-        db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
+        db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().filter_map(|i| {
           if let Some(weight) = pool_weights.get(&i.pool) {
             Some((i.pool,
               PoolDistribution{ // each pool has a weighted allocation
@@ -369,10 +376,12 @@ async fn get_distribution_info(
 async fn get_distribution_amounts(
   pool: web::Data<DbPool>,
   distr_config: web::Data<DistributionConfigs>,
+  redis: web::Data<redis::Client>,
   web::Path(user_address): web::Path<String>,
 ) -> Result<HttpResponse, Error> {
   let result = web::block(move || {
     let conn = pool.get().expect("couldn't get db connection from pool");
+    let mut rconn = redis.get_connection().expect("couldn't get redis connection");
     let mut r: HashMap<String, HashMap<String, BigDecimal>> = HashMap::new();
 
     for distr in distr_config.iter() {
@@ -390,7 +399,7 @@ async fn get_distribution_amounts(
       let pt = epoch_info.tokens_for_liquidity_providers();
       let distribution: HashMap<String, PoolDistribution> =
         if epoch_info.is_initial() {
-          let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+          let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.amount).sum();
           db::get_pools(&conn)?.into_iter().map(|pool| {
             (pool,
               PoolDistribution{ // share distribution fully
@@ -402,7 +411,7 @@ async fn get_distribution_amounts(
         } else {
           let pool_weights = distr.incentivized_pools();
           let total_weight: u32 = pool_weights.values().into_iter().sum();
-          db::get_time_weighted_liquidity(&conn, start, end, None)?.into_iter().filter_map(|i| {
+          db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().filter_map(|i| {
             if let Some(weight) = pool_weights.get(&i.pool) {
               Some((i.pool,
                 PoolDistribution{ // each pool has a weighted allocation
@@ -417,7 +426,7 @@ async fn get_distribution_amounts(
         };
 
       // for each individual TWAL, calculate the tokens
-      let user_liquidity = db::get_time_weighted_liquidity(&conn, start, end, Some(&user_address))?;
+      let user_liquidity = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, Some(&user_address))?;
       for l in user_liquidity.into_iter() {
         if let Some(pool) = distribution.get(&l.pool) {
           let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
@@ -523,6 +532,14 @@ async fn main() -> std::io::Result<()> {
     .build(manager)
     .expect("Failed to create db pool.");
 
+  // set up redis connection
+  let mut rconnspec = std::env::var("REDIS_URL").unwrap_or(String::from("redis://127.0.0.1/"));
+  // let rmanager = redis::ConnectionManager::<PgConnection>::new(connspec);
+  let redis = redis::Client::open(rconnspec).expect("Could not connect to redis");
+  let mut con = redis.get_connection().expect("Failed to get redis connection");
+  // throw away the result, just make sure it does not fail
+  let _ : () = con.set("zap-api-redis:test", 42).expect("Failed to set value on redis");
+
   // get network
   let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
   let network = match network_str.as_str() {
@@ -571,6 +588,7 @@ async fn main() -> std::io::Result<()> {
       .wrap(Logger::default())
       .data(pool.clone())
       .data(distr_configs.clone())
+      .data(redis.clone())
       .wrap(Cors::default()
         .max_age(Some(3600))
         .expose_any_header()

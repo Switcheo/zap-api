@@ -4,6 +4,7 @@ use diesel::prelude::*;
 use diesel::dsl::{sql, exists};
 use diesel::sql_types::{Text, Numeric, Timestamp};
 use chrono::{NaiveDateTime, Utc};
+use redis::Commands;
 
 use crate::models;
 use crate::pagination::*;
@@ -303,6 +304,7 @@ pub fn get_volume_by_address(
 /// Get time-weighted liquidity for all pools over a period filtered optionally by address.
 pub fn get_time_weighted_liquidity(
   conn: &PgConnection,
+  cache: &mut redis::Connection,
   start_timestamp: Option<i64>,
   end_timestamp: Option<i64>,
   address: Option<&str>,
@@ -322,6 +324,19 @@ pub fn get_time_weighted_liquidity(
     Some(end_timestamp) => NaiveDateTime::from_timestamp(end_timestamp, 0),
     None => Utc::now().naive_utc(),
   };
+
+  let network = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
+  let cache_key = format!("zap-api-cache:{}:get_time_weighted_liquidity:{}:{}:{}", network, start_timestamp.unwrap_or(0).to_string(), end_timestamp.unwrap_or(0).to_string(), address.unwrap_or(""));
+  let cache_value: Option<String> = cache.get(cache_key.clone()).unwrap_or(None);
+  match cache_value {
+    Some (serialized) => {
+      match serde_json::from_str::<Vec<models::Liquidity>>(&serialized) {
+        Ok(result) => return Ok(result),
+        _ => {}
+      }
+    }
+    _ => {}
+  }
 
   // local test query
   // "WITH t AS (
@@ -392,7 +407,14 @@ pub fn get_time_weighted_liquidity(
 
   trace!("{}", debug_query(&query).to_string());
 
-  Ok(query.load::<models::Liquidity>(conn)?)
+  let result = query.load::<models::Liquidity>(conn)?;
+
+  let cache_value: String = serde_json::to_string(&result).expect("failed to serialize result to cache");
+  let _ = cache.set_ex::<String, String, ()>(cache_key, cache_value, 60).unwrap_or_else(|e| { // 1min cache
+    error!("{}", e)
+  });
+
+  Ok(result)
 }
 
 /// Get time-weighted liquidity for all pools over a period grouped by address.
