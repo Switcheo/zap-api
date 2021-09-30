@@ -15,7 +15,7 @@ extern crate log;
 
 use actix::{Actor};
 use actix_cors::{Cors};
-use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder};
+use actix_web::{get, web, App, Error, HttpResponse, HttpServer, Responder, middleware::Logger};
 use bigdecimal::{BigDecimal, Signed};
 use diesel::prelude::*;
 use diesel::r2d2::{self, ConnectionManager};
@@ -568,6 +568,7 @@ async fn main() -> std::io::Result<()> {
   let bind = std::env::var("BIND").or(Ok::<String, Error>(String::from("127.0.0.1:3000"))).unwrap();
   let mut server = HttpServer::new(move || {
     App::new()
+      .wrap(Logger::default())
       .data(pool.clone())
       .data(distr_configs.clone())
       .wrap(Cors::default()
