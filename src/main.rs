@@ -90,15 +90,14 @@ async fn get_swaps(
     filter: web::Query<SwapInfo>,
     pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-    let conn = pool.get().expect("couldn't get db connection from pool");
-
-    // use web::block to offload blocking Diesel code without blocking server thread
-    let swaps = web::block(move || db::get_swaps(&conn, query.per_page, query.page, filter.pool.as_deref(), filter.address.as_deref(), filter.is_incoming.as_ref()))
-        .await
-        .map_err(|e| {
-            eprintln!("{}", e);
-            HttpResponse::InternalServerError().finish()
-        })?;
+    let swaps = web::block(move || {
+      let conn = pool.get().expect("couldn't get db connection from pool");
+      db::get_swaps(&conn, query.per_page, query.page, filter.pool.as_deref(), filter.address.as_deref(), filter.is_incoming.as_ref())
+    })
+    .await.map_err(|e| {
+      eprintln!("{}", e);
+      HttpResponse::InternalServerError().finish()
+    })?;
 
     Ok(HttpResponse::Ok().json(swaps))
 }
@@ -110,15 +109,14 @@ async fn get_liquidity_changes(
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity_changes = web::block(move || db::get_liquidity_changes(&conn, query.per_page, query.page, filter.pool.as_deref(), filter.address.as_deref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let liquidity_changes = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_liquidity_changes(&conn, query.per_page, query.page, filter.pool.as_deref(), filter.address.as_deref())
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(liquidity_changes))
 }
@@ -130,14 +128,14 @@ async fn get_volume(
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  let volumes = web::block(move || db::get_volume(&conn, filter.address.as_deref(), query.from, query.until))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let volumes = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_volume(&conn, filter.address.as_deref(), query.from, query.until)
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(volumes))
 }
@@ -150,14 +148,14 @@ async fn get_transactions(
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  let transactions = web::block(move || db::get_transactions(&conn, filter.address.as_deref(), filter.pool.as_deref(), query.from, query.until, pagination.per_page, pagination.page))
-      .await
-      .map_err(|e| {
-          eprintln!("load error {}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let transactions = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_transactions(&conn, filter.address.as_deref(), filter.pool.as_deref(), query.from, query.until, pagination.per_page, pagination.page)
+  })
+  .await.map_err(|e| {
+    eprintln!("load error {}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(transactions))
 }
@@ -169,15 +167,14 @@ async fn get_liquidity(
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_liquidity(&conn, query.timestamp, filter.address.as_deref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let liquidity = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_liquidity(&conn, query.timestamp, filter.address.as_deref())
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(liquidity))
 }
@@ -189,15 +186,14 @@ async fn get_weighted_liquidity(
   filter: web::Query<AddressInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  // use web::block to offload blocking Diesel code without blocking server thread
-  let liquidity = web::block(move || db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_deref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let liquidity = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_time_weighted_liquidity(&conn, query.from, query.until, filter.address.as_deref())
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(liquidity))
 }
@@ -216,9 +212,8 @@ async fn generate_epoch(
   distr_config: web::Data<DistributionConfigs>,
   web::Path(id): web::Path<usize>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
   let result = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
     if !var_enabled("RUN_GENERATE") {
       return Ok(String::from("Epoch generation disabled!"))
     }
@@ -345,11 +340,11 @@ async fn generate_epoch(
     };
 
     Ok::<String, diesel::result::Error>(encode(tree.root().data().clone().1))
-  }).await
-    .map_err(|e| {
-      eprintln!("{}", e);
-      HttpResponse::InternalServerError().finish()
-    })?;
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(result))
 }
@@ -376,9 +371,8 @@ async fn get_distribution_amounts(
   distr_config: web::Data<DistributionConfigs>,
   web::Path(user_address): web::Path<String>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
   let result = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
     let mut r: HashMap<String, HashMap<String, BigDecimal>> = HashMap::new();
 
     for distr in distr_config.iter() {
@@ -442,11 +436,11 @@ async fn get_distribution_amounts(
     }
 
     Ok::<HashMap<String, HashMap<String, BigDecimal>>, diesel::result::Error>(r)
-  }).await
-    .map_err(|e| {
-      eprintln!("{}", e);
-      HttpResponse::InternalServerError().finish()
-    })?;
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(result))
 }
@@ -458,14 +452,14 @@ async fn get_distribution_data(
   filter: web::Query<AddressInfo>,
   web::Path((distributor_address, epoch_number)): web::Path<(String, i32)>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  let distributions = web::block(move || db::get_distributions(&conn, Some(&distributor_address), Some(epoch_number), filter.address.as_deref()))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let distributions = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_distributions(&conn, Some(&distributor_address), Some(epoch_number), filter.address.as_deref())
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(distributions))
 }
@@ -476,14 +470,14 @@ async fn get_distribution_data_by_address(
   pool: web::Data<DbPool>,
   web::Path(user_address): web::Path<String>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  let distributions = web::block(move || db::get_unclaimed_distributions_by_address(&conn, &user_address))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let distributions = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_unclaimed_distributions_by_address(&conn, &user_address)
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(distributions))
 }
@@ -495,14 +489,14 @@ async fn get_claims(
   filter: web::Query<ClaimInfo>,
   pool: web::Data<DbPool>,
 ) -> Result<HttpResponse, Error> {
-  let conn = pool.get().expect("couldn't get db connection from pool");
-
-  let claims = web::block(move || db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), filter.epoch_number.as_ref(), pagination.per_page, pagination.page))
-      .await
-      .map_err(|e| {
-          eprintln!("{}", e);
-          HttpResponse::InternalServerError().finish()
-      })?;
+  let claims = web::block(move || {
+    let conn = pool.get().expect("couldn't get db connection from pool");
+    db::get_claims(&conn, filter.address.as_deref(), filter.distr_address.as_deref(), filter.epoch_number.as_ref(), pagination.per_page, pagination.page)
+  })
+  .await.map_err(|e| {
+    eprintln!("{}", e);
+    HttpResponse::InternalServerError().finish()
+  })?;
 
   Ok(HttpResponse::Ok().json(claims))
 }
@@ -525,8 +519,9 @@ async fn main() -> std::io::Result<()> {
   let connspec = std::env::var("DATABASE_URL").expect("DATABASE_URL env var missing.");
   let manager = ConnectionManager::<PgConnection>::new(connspec);
   let pool = r2d2::Pool::builder()
-      .build(manager)
-      .expect("Failed to create db pool.");
+    .max_size(30)
+    .build(manager)
+    .expect("Failed to create db pool.");
 
   // get network
   let network_str = std::env::var("NETWORK").unwrap_or(String::from("testnet"));
