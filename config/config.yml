@@ -101,6 +101,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 1  # BLOX
+    - name: "RECAP Rewards"
+      reward_token_symbol: RECAP
+      reward_token_address_hex: "0x5346c4ff16Dc347f5529e725869A5Ea0fbD67EA4"
+      distributor_name: RECAP
+      distributor_address_hex: "0x2c93f8482a199051f8662e4e7220d054c7b55239"
+      developer_address: zil1vqvh89p856wkll8v8jgajhsm4xf3m5wkqaafz2
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "3000000000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1632902400
+        total_number_of_epochs: 1077
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil12drvflckms6874ffuujcdxj75raavl4yfn4ssc: 1  # RECAP
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
