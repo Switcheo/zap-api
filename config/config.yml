@@ -83,6 +83,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 1  # STREAM
+    - name: "BLOX Liquidity Rewards"
+      reward_token_symbol: BLOX
+      reward_token_address_hex: "0x4268C34dA6Ad41a4cDeAa25cdEF6531Ed0c9a1A2"
+      distributor_name: BLOX
+      distributor_address_hex: "0x644590ca7de53c5275a1b5602099f3d65da4343f"
+      developer_address: zil1gy9v2fy4nsa5n5mx7grtt5sn205d6qduxkl84t
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "1086900"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1632902400
+        total_number_of_epochs: 84
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 1  # BLOX
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
