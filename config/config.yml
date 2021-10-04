@@ -119,6 +119,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil12drvflckms6874ffuujcdxj75raavl4yfn4ssc: 1  # RECAP
+    - name: "DeMons Rewards"
+      reward_token_symbol: DMZ
+      reward_token_address_hex: "0x2fc7167c3Baff89E2805Aef72636ccD98eE6Bbb2"
+      distributor_name: DeMons
+      distributor_address_hex: "0xe43333dbad2c73107fca658507f0984e2cab1e1a"
+      developer_address: zil1wgqff8zgq3erdpexa3fr96prcplflkawdl9dkg
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "8654000000000000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1631088000
+        total_number_of_epochs: 156
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
