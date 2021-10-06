@@ -137,7 +137,7 @@ mainnet:
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1633507200
-        total_number_of_epochs: 154
+        total_number_of_epochs: 152
       incentivized_pools:
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
 
