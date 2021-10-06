@@ -140,7 +140,6 @@ mainnet:
         total_number_of_epochs: 152
       incentivized_pools:
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
-
     - name: "ZIL Rewards"
       reward_token_symbol: ZIL
       reward_token_address_hex: "0x0000000000000000000000000000000000000000"
