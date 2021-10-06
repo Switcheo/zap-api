@@ -125,6 +125,26 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil12drvflckms6874ffuujcdxj75raavl4yfn4ssc: 1  # RECAP
+    - name: "ZIL Rewards"
+      reward_token_symbol: ZIL
+      reward_token_address_hex: "0x0000000000000000000000000000000000000000"
+      distributor_name: Zilliqa
+      distributor_address_hex: "0x7af41077da003602efe872f8b8896c32153b42ae"
+      developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "7550000000000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1633507200
+        total_number_of_epochs: 6
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 1 # zWBTC
+        zil19j33tapjje2xzng7svslnsjjjgge930jx0w09v: 1 # zETH
+        zil1sxx29cshups269ahh5qjffyr58mxjv9ft78jqy: 1 # zUSDT
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
