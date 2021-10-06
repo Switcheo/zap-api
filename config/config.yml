@@ -138,6 +138,9 @@ mainnet:
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1633507200
         total_number_of_epochs: 154
+      incentivized_pools:
+        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
+
     - name: "ZIL Rewards"
       reward_token_symbol: ZIL
       reward_token_address_hex: "0x0000000000000000000000000000000000000000"
@@ -155,7 +158,6 @@ mainnet:
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:
-        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
         zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 1 # zWBTC
         zil19j33tapjje2xzng7svslnsjjjgge930jx0w09v: 1 # zETH
         zil1sxx29cshups269ahh5qjffyr58mxjv9ft78jqy: 1 # zUSDT
