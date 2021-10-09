@@ -143,10 +143,10 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
-    - name: "DeMons Rewards"
-      reward_token_symbol: DMZ
+    - name: "REDC Rewards"
+      reward_token_symbol: REDC
       reward_token_address_hex: "0xaCb721d989c095c64A24d16DfD23b08D738e2552"
-      distributor_name: DeMons
+      distributor_name: REDC
       distributor_address_hex: "0x41A9e637aE3C4A7F11743d1f9B739d077d1Df230"
       developer_address: zil1lw7527hy73p8sddzlnc5ykrygsg4n8d45pjgtd
       emission_info:
