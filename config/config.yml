@@ -143,6 +143,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 1  # DMZ
+    - name: "DeMons Rewards"
+      reward_token_symbol: DMZ
+      reward_token_address_hex: "0xaCb721d989c095c64A24d16DfD23b08D738e2552"
+      distributor_name: DeMons
+      distributor_address_hex: "0x41A9e637aE3C4A7F11743d1f9B739d077d1Df230"
+      developer_address: zil1lw7527hy73p8sddzlnc5ykrygsg4n8d45pjgtd
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "1212000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1633507200
+        total_number_of_epochs: 131
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil14jmjrkvfcz2uvj3y69kl6gas34ecuf2j5ggmye: 1  # REDC
     - name: "ZIL Rewards"
       reward_token_symbol: ZIL
       reward_token_address_hex: "0x0000000000000000000000000000000000000000"
