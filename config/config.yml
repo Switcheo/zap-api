@@ -147,7 +147,7 @@ mainnet:
       reward_token_symbol: ZIL
       reward_token_address_hex: "0x0000000000000000000000000000000000000000"
       distributor_name: Zilliqa
-      distributor_address_hex: "0x7af41077da003602efe872f8b8896c32153b42ae"
+      distributor_address_hex: "0xd84c67723d4ef726ecc982b339c860a22117cba6"
       developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
       emission_info:
         epoch_period: 604800 # 1 week
