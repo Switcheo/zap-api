@@ -13,9 +13,9 @@ table! {
         event_sequence -> Int4,
         block_height -> Int4,
         block_timestamp -> Timestamp,
-        initiator_address -> Varchar,
         distributor_address -> Varchar,
         epoch_number -> Int4,
+        initiator_address -> Varchar,
         amount -> Numeric,
     }
 }
@@ -23,12 +23,12 @@ table! {
 table! {
     distributions (id) {
         id -> Uuid,
-        distributor_address -> Varchar,
         epoch_number -> Int4,
         address_bech32 -> Varchar,
         address_hex -> Varchar,
         amount -> Numeric,
         proof -> Varchar,
+        distributor_address -> Varchar,
     }
 }
 
@@ -86,6 +86,7 @@ table! {
         change_amount -> Nullable<Numeric>,
     }
 }
+
 
 allow_tables_to_appear_in_same_query!(
     backfill_completions,
