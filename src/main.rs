@@ -533,7 +533,7 @@ async fn main() -> std::io::Result<()> {
     .expect("Failed to create db pool.");
 
   // set up redis connection
-  let mut rconnspec = std::env::var("REDIS_URL").unwrap_or(String::from("redis://127.0.0.1/"));
+  let rconnspec = std::env::var("REDIS_URL").unwrap_or(String::from("redis://127.0.0.1/"));
   // let rmanager = redis::ConnectionManager::<PgConnection>::new(connspec);
   let redis = redis::Client::open(rconnspec).expect("Could not connect to redis");
   let mut con = redis.get_connection().expect("Failed to get redis connection");

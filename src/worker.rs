@@ -177,7 +177,7 @@ impl From<diesel::result::Error> for FetchError {
   }
 }
 
-type PersistResult = Result<(), diesel::result::Error>;
+type PersistResult = Result<bool, diesel::result::Error>;
 
 /// Define fetch actor
 struct EventFetchActor {
@@ -269,16 +269,14 @@ impl Handler<Fetch> for EventFetchActor {
             Event::Swapped => persist_swap_event,
             Event::Claimed => persist_claim_event,
           };
-          if let Err(err) = persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
-            match err {
-              diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
-                // mark duplicate and continue processing other events in this fetch
-                debug!("Ignoring duplicate {} entry", event)
-              },
-              _ => return Err(FetchError::from(err))
-            }
-          } else {
-            inserted_some_event = true
+          match persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
+            Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
+              // mark duplicate and continue processing other events in this fetch
+              info!("Ignoring duplicate {} entry, {} {}", event, tx.hash, i)
+            },
+            Err(err) => return Err(FetchError::from(err)),
+            Ok(true) => inserted_some_event = true,
+            _ => ()
           }
         }
       }
@@ -308,7 +306,7 @@ impl Handler<Fetch> for EventFetchActor {
 fn persist_mint_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
   let name = event.name.as_str();
   if name != "Mint" {
-    return Ok(())
+    return Ok(false)
   }
 
   let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
@@ -332,13 +330,13 @@ fn persist_mint_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   };
 
   debug!("Inserting: {:?}", add_liquidity);
-  db::insert_liquidity_change(add_liquidity, &conn)
+  db::insert_liquidity_change(add_liquidity, &conn).map(|_| true)
 }
 
 fn persist_burn_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
   let name = event.name.as_str();
   if name != "Burnt" {
-    return Ok(())
+    return Ok(false)
   }
   let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
   let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
@@ -361,13 +359,13 @@ fn persist_burn_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   };
 
   debug!("Inserting: {:?}", remove_liquidity);
-  db::insert_liquidity_change(remove_liquidity, &conn)
+  db::insert_liquidity_change(remove_liquidity, &conn).map(|_| true)
 }
 
 fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
   let name = event.name.as_str();
   if name != "Swapped" {
-    return Ok(())
+    return Ok(false)
   }
 
   let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
@@ -409,13 +407,13 @@ fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   };
 
   debug!("Inserting: {:?}", new_swap);
-  db::insert_swap(new_swap, &conn)
+  db::insert_swap(new_swap, &conn).map(|_| true)
 }
 
 fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
   let name = event.name.as_str();
   if name != "Claimed" {
-    return Ok(())
+    return Ok(false)
   }
 
   let epoch_number = event.params.get("epoch_number").unwrap().as_str().expect("Malformed response!");
@@ -437,5 +435,5 @@ fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: 
   };
 
   debug!("Inserting: {:?}", new_claim);
-  db::insert_claim(new_claim, &conn)
+  db::insert_claim(new_claim, &conn).map(|_| true)
 }
