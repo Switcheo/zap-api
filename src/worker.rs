@@ -272,7 +272,7 @@ impl Handler<Fetch> for EventFetchActor {
           match persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
             Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
               // mark duplicate and continue processing other events in this fetch
-              info!("Ignoring duplicate {} entry, {} {}", event, tx.hash, i)
+              debug!("Ignoring duplicate {} entry, {} {}", event, tx.hash, i)
             },
             Err(err) => return Err(FetchError::from(err)),
             Ok(true) => inserted_some_event = true,
