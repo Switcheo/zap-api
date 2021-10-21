@@ -260,7 +260,7 @@ impl Handler<Fetch> for EventFetchActor {
         return Ok(NextFetch::poll(&msg));
       }
 
-      let mut duplicate_found = false;
+      let mut inserted_some_event = false;
       for tx in result.txs {
         for (i, ev) in tx.events.iter().enumerate() {
           let persist = match event {
@@ -273,16 +273,17 @@ impl Handler<Fetch> for EventFetchActor {
             match err {
               diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) => {
                 // mark duplicate and continue processing other events in this fetch
-                duplicate_found = true;
                 debug!("Ignoring duplicate {} entry", event)
               },
               _ => return Err(FetchError::from(err))
             }
+          } else {
+            inserted_some_event = true
           }
         }
       }
 
-      if duplicate_found && db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
+      if !inserted_some_event && db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
         info!("Fetched till last inserted {} event.", event);
         return Ok(NextFetch::poll(&msg));
       }
