@@ -69,7 +69,6 @@ mainnet:
         zil1v5s3f9dds05et8mhtwlzh4l7klyrcnc679y27s: 1  # PIL
         zil168qdlq4xsua6ac9hugzntqyasf8gs7aund882v: 1  # SRV
         zil1r9dcsrya4ynuxnzaznu00e6hh3kpt7vhvzgva0: 1  # ZLF
-        zil19cyp6kj7zrz3c2q50ts2nly6hrhrr7vr89g9gf: 1  # UNIDEX
         zil1s8xzysqcxva2x6aducncv9um3zxr36way3fx9g: 1  # ZCH
         zil18l7eyut8t4gu68w7mg0ck664ee33mykrycps6l: 1  # NFTDEX
     - name: "STREAM Rewards"
