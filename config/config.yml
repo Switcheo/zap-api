@@ -181,6 +181,24 @@ mainnet:
         zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 1 # zWBTC
         zil19j33tapjje2xzng7svslnsjjjgge930jx0w09v: 1 # zETH
         zil1sxx29cshups269ahh5qjffyr58mxjv9ft78jqy: 1 # zUSDT
+    - name: "OKIPAD Rewards"
+      reward_token_symbol: OKI
+      reward_token_address_hex: "0x54ae64e2092749fb8d25470ffc1d4d6a19c6f2ab"
+      distributor_name: OKIDistributor
+      distributor_address_hex: "0x7afe32bdd5baeecf35dc61c4ef333b0701f28f8b"
+      developer_address: zil10fpw0k7pwp4y9pcxt52jt7as0k54th80kqu6e3
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "2000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1635926400
+        total_number_of_epochs: 10
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil12jhxfcsfyaylhrf9gu8lc82ddgvudu4tzvduum: 1 # OKI
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
@@ -261,3 +279,6 @@ testnet:
         zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
         zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
         zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP
+
+
+    
