@@ -88,7 +88,7 @@ mainnet:
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:
-        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 3  # XCAD
+        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 1  # XCAD
     - name: "BLOX Liquidity Rewards"
       reward_token_symbol: BLOX
       reward_token_address_hex: "0x4268c34da6ad41a4cdeaa25cdef6531ed0c9a1a2"
