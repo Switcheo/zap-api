@@ -205,7 +205,7 @@ mainnet:
       reward_token_address_hex: "0x083196549637faf95c91eccd157e60430e69e1a7"
       distributor_name: Sparda Wallet
       distributor_address_hex: "0x0ce1389fa06e1a5f5843a7b330279788c1bcda08"
-      developer_address: zil10xln7l3wvtergejsqjkmsews2gkqs73gt9tyey
+      developer_address: zil1nf3twzcz6w27ptk0whnmxmqyxtv76mve4u5ke9
       emission_info:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: "6000000000"
