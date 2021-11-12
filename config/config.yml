@@ -43,7 +43,10 @@ mainnet:
         zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 4  # zWBTC
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 4  # XSGD
         zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 3  # PORT
-        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 3  # XCAD
+        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 3  # 
+        
+        
+        
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 3  # DMZ
         zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 2  # BLOX
         zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2  # Lunr
@@ -186,8 +189,8 @@ mainnet:
       reward_token_symbol: XCAD
       reward_token_address_hex: "0x153feaddc48871108e286de3304b9597c817b456"
       distributor_name: XCAD
-      distributor_address_hex: "0xc6402ce1397f3f1549853e6f519e21dad1bb006e"
-      developer_address: zil1vnz7g7awhpwm6dy26dj5nm3lr4suc20scy8f23
+      distributor_address_hex: "0xAD48b1C421b7b55E03f91b74681D97f5701c1060"
+      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
       emission_info:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: "8750000000000000000000"
@@ -280,21 +283,6 @@ testnet:
         zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
         zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
         zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP
-    - name: "XCAD Rewards"
-      reward_token_symbol: XCAD
-      reward_token_address_hex: "0x153feaddc48871108e286de3304b9597c817b456"
-      distributor_name: XCAD
-      distributor_address_hex: "0xAD48b1C421b7b55E03f91b74681D97f5701c1060"
-      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
-      emission_info:
-        epoch_period: 604800 # 1 week
-        tokens_per_epoch: "8750000000000000000000"
-        tokens_for_retroactive_distribution: "0"
-        retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1636531200
-        total_number_of_epochs: 4
-        initial_epoch_number: 0
-        developer_token_ratio_bps: 0
-        trader_token_ratio_bps: 0
-      incentivized_pools:
-        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 1  # XCAD
+
+
+
