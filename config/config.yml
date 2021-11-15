@@ -200,6 +200,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 1  # XCAD
+    - name: "SPW Rewards"
+      reward_token_symbol: SPW
+      reward_token_address_hex: "0x083196549637faf95c91eccd157e60430e69e1a7"
+      distributor_name: Sparda Wallet
+      distributor_address_hex: "0x0ce1389fa06e1a5f5843a7b330279788c1bcda08"
+      developer_address: zil1nf3twzcz6w27ptk0whnmxmqyxtv76mve4u5ke9
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "6000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1636527600
+        total_number_of_epochs: 30
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 1  # SPW
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
