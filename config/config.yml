@@ -186,8 +186,8 @@ mainnet:
       reward_token_symbol: XCAD
       reward_token_address_hex: "0x153feaddc48871108e286de3304b9597c817b456"
       distributor_name: XCAD
-      distributor_address_hex: "0xc6402ce1397f3f1549853e6f519e21dad1bb006e"
-      developer_address: zil1vnz7g7awhpwm6dy26dj5nm3lr4suc20scy8f23
+      distributor_address_hex: "0xAD48b1C421b7b55E03f91b74681D97f5701c1060"
+      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
       emission_info:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: "8750000000000000000000"
@@ -200,6 +200,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 1  # XCAD
+    - name: "SPW Rewards"
+      reward_token_symbol: SPW
+      reward_token_address_hex: "0x083196549637faf95c91eccd157e60430e69e1a7"
+      distributor_name: Sparda Wallet
+      distributor_address_hex: "0x0ce1389fa06e1a5f5843a7b330279788c1bcda08"
+      developer_address: zil1nf3twzcz6w27ptk0whnmxmqyxtv76mve4u5ke9
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "6000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1636527600
+        total_number_of_epochs: 30
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 1  # SPW
     - name: "PORT Rewards"
       reward_token_symbol: PORT
       reward_token_address_hex: "0x3a683fdc022b26d755c70e9ed7cfcc446658018b"
@@ -213,11 +231,6 @@ mainnet:
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1636934400 # Mon Nov 15 2021 00:00:00 GMT+0000
         total_number_of_epochs: 6
-        initial_epoch_number: 0
-        developer_token_ratio_bps: 0
-        trader_token_ratio_bps: 0
-      incentivized_pools:
-        zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 1  # PORT
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
@@ -298,6 +311,3 @@ testnet:
         zil1fytuayks6njpze00ukasq3m4y4s44k79hvz8q5: 3 # gZIL
         zil10a9z324aunx2qj64984vke93gjdnzlnl5exygv: 2 # XSGD
         zil1k2c3ncjfduj9jrhlgx03t2smd6p25ur56cfzgz: 5 # ZWAP
-
-
-
