@@ -186,8 +186,8 @@ mainnet:
       reward_token_symbol: XCAD
       reward_token_address_hex: "0x153feaddc48871108e286de3304b9597c817b456"
       distributor_name: XCAD
-      distributor_address_hex: "0xc6402ce1397f3f1549853e6f519e21dad1bb006e"
-      developer_address: zil1vnz7g7awhpwm6dy26dj5nm3lr4suc20scy8f23
+      distributor_address_hex: "0xAD48b1C421b7b55E03f91b74681D97f5701c1060"
+      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
       emission_info:
         epoch_period: 604800 # 1 week
         tokens_per_epoch: "8750000000000000000000"
