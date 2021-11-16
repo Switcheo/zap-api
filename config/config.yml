@@ -229,7 +229,7 @@ mainnet:
         tokens_per_epoch: "100000000" # 10k PORT
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1637107200 # Wed Nov 17 2021 00:00:00 GMT+0000
+        distribution_start_time: 1637136000 # Wed Nov 17 2021 08:00:00 GMT+0000
         total_number_of_epochs: 6
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
