@@ -217,19 +217,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 1  # SPW
-    # - name: "PORT Rewards"
-    #   reward_token_symbol: PORT
-    #   reward_token_address_hex: "0x3a683fdc022b26d755c70e9ed7cfcc446658018b"
-    #   distributor_name: PORTDistributor
-    #   distributor_address_hex: "0xa7b0b270e1b18e612fe94c847846d8fd62e0d224"
-    #   developer_address: zil1lwhp89ng3m7m0c0d4zfp8tuj43vyftu02nyync
-    #   emission_info:
-    #     epoch_period: 604800 # 1 week
-    #     tokens_per_epoch: "100000000" # 10k PORT
-    #     tokens_for_retroactive_distribution: "0"
-    #     retroactive_distribution_cutoff_time: 0
-    #     distribution_start_time: 1637136000 # Wed Nov 17 2021 08:00:00 GMT+0000
-    #     total_number_of_epochs: 6
+    - name: "PORT Rewards"
+      reward_token_symbol: PORT
+      reward_token_address_hex: "0x3a683fdc022b26d755c70e9ed7cfcc446658018b"
+      distributor_name: PORTDistributor
+      distributor_address_hex: "0xa7b0b270e1b18e612fe94c847846d8fd62e0d224"
+      developer_address: zil1lwhp89ng3m7m0c0d4zfp8tuj43vyftu02nyync
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "100000000" # 10k PORT
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1637136000 # Wed Nov 17 2021 08:00:00 GMT+0000
+        total_number_of_epochs: 6
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 1  # PORT
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
