@@ -149,7 +149,7 @@ mainnet:
       reward_token_symbol: REDC
       reward_token_address_hex: "0xaCb721d989c095c64A24d16DfD23b08D738e2552"
       distributor_name: REDC
-      distributor_address_hex: "0x41A9e637aE3C4A7F11743d1f9B739d077d1Df230"
+      distributor_address_hex: "0x41a9e637ae3c4a7f11743d1f9b739d077d1df230"
       developer_address: zil1vx266dnzmzv6c52np5jlwz43804q45eakecmcz
       emission_info:
         epoch_period: 604800 # 1 week
@@ -185,7 +185,7 @@ mainnet:
       reward_token_symbol: XCAD
       reward_token_address_hex: "0x153feaddc48871108e286de3304b9597c817b456"
       distributor_name: XCAD
-      distributor_address_hex: "0xAD48b1C421b7b55E03f91b74681D97f5701c1060"
+      distributor_address_hex: "0xad48b1c421b7b55e03f91b74681d97f5701c1060"
       developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
       emission_info:
         epoch_period: 604800 # 1 week
