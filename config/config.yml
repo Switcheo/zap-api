@@ -228,7 +228,7 @@ mainnet:
         tokens_per_epoch: "40000000" # 4k PORT
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1637136000 # Wed Nov 17 2021 08:00:00 GMT+0000
+        distribution_start_time: 1638345600 # Wed Dec 01 2021 08:00:00 GMT+0000
         total_number_of_epochs: 5
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
