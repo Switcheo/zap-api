@@ -1,6 +1,6 @@
 ---
 mainnet:
-  zilswap_address_hex: "0xba11eb7bcc0a02e947acf03cc651bfaf19c9ec00"
+  zilswap_address_hex: "0x459cb2d3baf7e61cfbd5fe362f289ae92b2babb0"
   distributions:
     - name: "ZWAP Rewards Legacy"
       reward_token_symbol: ZWAP
