@@ -237,6 +237,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 1  # PORT
+    - name: "SWTH Liquidity Rewards"
+      reward_token_symbol: SWTH
+      reward_token_address_hex: "swthHexAddress"
+      distributor_name: SWTHDistributor
+      distributor_address_hex: "distributorHexAddress"
+      developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "44484060000000" # 444,840.6 SWTH
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1640160000 # Wed Dec 22 2021 08:00:00 GMT+0000
+        total_number_of_epochs: 10
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        swthZilAddress: 1  # SWTH
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
