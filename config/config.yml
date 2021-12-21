@@ -248,12 +248,12 @@ mainnet:
         tokens_per_epoch: "50000000000" # 500k PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1680069000 # because block 1696969 was too long to wait
-        total_number_of_epochs: 69
+        distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
+        total_number_of_epochs: 12 # 6m tokens
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
-      incentivized_pools:
+      incentivized_pools:                         
         zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
