@@ -241,7 +241,7 @@ mainnet:
       reward_token_symbol: SWTH
       reward_token_address_hex: "0x258b14969e4f67d0a5e48091b3d43a518663248b"
       distributor_name: SWTHDistributor
-      distributor_address_hex: "0xf2a0ecd88167e8ddf87fff6bb7e87b8911dacaf2"
+      distributor_address_hex: "0x340ee09ba91a07597d071d5d30f8b1276613dd84"
       developer_address: zil1ytk3ykwlc2vy8fyp7wqp492zjassj5mxzgscv6
       emission_info:
         epoch_period: 604800 # 1 week
