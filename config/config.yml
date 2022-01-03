@@ -240,12 +240,12 @@ mainnet:
     - name: "PELE Rewards"
       reward_token_symbol: PELE
       reward_token_address_hex: "0x55d66385a975a25cd7c9bb7cb8b1b11a56436789"
-      distributor_name: PELEDistributor
+      distributor_name: PELE Network
       distributor_address_hex: "0xdd80d40486932aff9aac3c9bb7c11bc9d249a6da"
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "50000000000" # 500k PELE
+        tokens_per_epoch: "150000000000" # 1.5m PELE for just one week
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
