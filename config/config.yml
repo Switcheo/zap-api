@@ -208,7 +208,7 @@ mainnet:
       developer_address: zil1nf3twzcz6w27ptk0whnmxmqyxtv76mve4u5ke9
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "6000000000"
+        tokens_per_epoch: "2000000000"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1636527600
