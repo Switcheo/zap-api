@@ -273,6 +273,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:                         
         zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
+    - name: "FEES Rewards"
+      reward_token_symbol: FEES
+      reward_token_address_hex: "0x91228A48AEA4E4071B9C6444Eb08B021399CfF7c"
+      distributor_name: FEESDistributor
+      distributor_address_hex: "0x362ff3ee2682b4cd450bab20bc554ec63ac404e6"
+      developer_address: zil1vyw2z78tl2szkljsmd9n7fcrxyqm0rys55jsjp
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "5000000000" # FEES 
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641369600 # Wed Jan 05 2022 08:00:00 GMT+0000
+        total_number_of_epochs: 4
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 1  # FEES    
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
