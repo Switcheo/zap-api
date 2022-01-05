@@ -284,7 +284,7 @@ mainnet:
         tokens_per_epoch: "5000000000" # FEES 
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1641369600 # Wed Jan 05 2022 08:00:00 GMT+0000
+        distribution_start_time: 1641974400 # Wed Jan 12 2022 08:00:00 GMT+0000
         total_number_of_epochs: 4
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
