@@ -55,6 +55,7 @@ mainnet:
         zil1n02sfv2ytldc7jnyx3f7c9zehwdzlxy2ykrhf9: 2  # XIDR
         zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 2  # STREAM
         zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 2  # SPW
+        zil1yk93f957fanapf0yszgm84p62xrxxfytj4d2tl: 2  # SWTH
     - name: "STREAM Rewards"
       reward_token_symbol: STREAM
       reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
