@@ -264,7 +264,7 @@ mainnet:
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "150000000000" # 1.5m PELE
+        tokens_per_epoch: "100000000000" # 1.0m PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
