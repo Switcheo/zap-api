@@ -291,7 +291,43 @@ mainnet:
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:
-        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 1  # FEES    
+        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 1  # FEES
+    - name: "LUNR Rewards 1 (Lunr)"
+      reward_token_symbol: LUNR
+      reward_token_address_hex: "0x31bfa2054b7199f936733f9054dbce259a3c335a" #LUNR
+      distributor_name: LUNRDistributor1
+      distributor_address_hex: "0x278d0b4c10e002c6398f765e4744f174547b5e26"
+      developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "30000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
+        total_number_of_epochs: 8
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
+    - name: "LUNR Rewards 2 (zWBTC)"
+      reward_token_symbol: zWBTC
+      reward_token_address_hex: "0x75fa7d8ba6bed4a68774c758a5e43cfb6633d9d6" #zWBTC
+      distributor_name: LUNRDistributor2
+      distributor_address_hex: "0x8cc76a64c077d71a7bb77657d565ee4aba9cc633"
+      developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "30000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
+        total_number_of_epochs: 8
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
