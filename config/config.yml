@@ -39,22 +39,24 @@ mainnet:
         zil1p5suryq6q647usxczale29cu3336hhp376c627: 40 # ZWAP
         zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 5  # XCAD
         zil1sxx29cshups269ahh5qjffyr58mxjv9ft78jqy: 4  # zUSDT
-        zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 3  # gZIL
+        zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 4  # gZIL
         zil19j33tapjje2xzng7svslnsjjjgge930jx0w09v: 3  # zETH
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 3  # XSGD
         zil18f5rlhqz9vndw4w8p60d0n7vg3n9sqvta7n6t2: 3  # PORT
-        zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 2  # zWBTC
-        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2  # Lunr
+        zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 3  # zWBTC
+        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 3  # FEES
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 3  # Lunr
         zil1gf5vxndx44q6fn025fwdaajnrmgvngdzel0jzp: 2  # BLOX
-        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 2  # FEES
         zil1hau7z6rjltvjc95pphwj57umdpvv0d6kh2t8zk: 2  # CARB
         zil1kwfu3x9n6fsuxc4ynp72uk5rxge25enw7zsf9z: 2  # SCO
-        zil12jhxfcsfyaylhrf9gu8lc82ddgvudu4tzvduum: 2  # Oki
         zil14d6wwelssqumu6w9c6kaucz2r57z34cxuh96lf: 2  # SHARDS
         zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 2  # DMZ
+        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 2  # STREAM
+        zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 2  # SPW
+        zil1yk93f957fanapf0yszgm84p62xrxxfytj4d2tl: 2  # SWTH
+        zil1xfcg9hfpdlmz2aytz0s4dww35hfa6s0jnjut5f: 2  # dXCAD
         zil1n02sfv2ytldc7jnyx3f7c9zehwdzlxy2ykrhf9: 1  # XIDR
-        zil1504065pp76uuxm7s9m2c4gwszhez8pu3mp6r8c: 1  # STREAM
-        zil1pqcev4ykxla0jhy3anx32lnqgv8xncd8q57ql2: 1  # SPW
+        zil1qldr63ds7yuspqcf02263y2lctmtqmr039vrht: 1  # ZPAINT
     - name: "STREAM Rewards"
       reward_token_symbol: STREAM
       reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
@@ -263,7 +265,7 @@ mainnet:
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "50000000000" # 500k PELE
+        tokens_per_epoch: "100000000000" # 1.0m PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
@@ -273,6 +275,78 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:                         
         zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
+    - name: "FEES Rewards"
+      reward_token_symbol: FEES
+      reward_token_address_hex: "0x91228A48AEA4E4071B9C6444Eb08B021399CfF7c"
+      distributor_name: FEESDistributor
+      distributor_address_hex: "0x362ff3ee2682b4cd450bab20bc554ec63ac404e6"
+      developer_address: zil1vyw2z78tl2szkljsmd9n7fcrxyqm0rys55jsjp
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "5000000000" # FEES 
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641974400 # Wed Jan 12 2022 08:00:00 GMT+0000
+        total_number_of_epochs: 4
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 1  # FEES
+    - name: "LUNR Rewards 1 (Lunr)"
+      reward_token_symbol: LUNR
+      reward_token_address_hex: "0x31bfa2054b7199f936733f9054dbce259a3c335a" #LUNR
+      distributor_name: LUNRDistributor1
+      distributor_address_hex: "0x278d0b4c10e002c6398f765e4744f174547b5e26"
+      developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "30000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
+        total_number_of_epochs: 8
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
+    - name: "LUNR Rewards 2 (zWBTC)"
+      reward_token_symbol: zWBTC
+      reward_token_address_hex: "0x75fa7d8ba6bed4a68774c758a5e43cfb6633d9d6" #zWBTC
+      distributor_name: LUNRDistributor2
+      distributor_address_hex: "0x8cc76a64c077d71a7bb77657d565ee4aba9cc633"
+      developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "30000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
+        total_number_of_epochs: 8
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
+    - name: "dXCAD Rewards"
+      reward_token_symbol: dXCAD
+      reward_token_address_hex: "0x327082dd216ff625748b13e156b9d1a5d3dd41f2"
+      distributor_name: dXCAD
+      distributor_address_hex: "0xb92fad64a734eb2a305087224e544f68a843cbc3"
+      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "100000000000000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1642579200 #8am GMT Wed Jan 19 2022
+        total_number_of_epochs: 4
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xfcg9hfpdlmz2aytz0s4dww35hfa6s0jnjut5f: 1  # dXCAD
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
