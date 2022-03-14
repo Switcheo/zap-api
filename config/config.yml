@@ -329,7 +329,7 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
-    - name: "dXCAD Rewards"
+    - name: "dXCAD Rewards Legacy"
       reward_token_symbol: dXCAD
       reward_token_address_hex: "0x327082dd216ff625748b13e156b9d1a5d3dd41f2"
       distributor_name: dXCAD
@@ -342,6 +342,24 @@ mainnet:
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1642579200 #8am GMT Wed Jan 19 2022
         total_number_of_epochs: 6
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xfcg9hfpdlmz2aytz0s4dww35hfa6s0jnjut5f: 1  # dXCAD
+    - name: "dXCAD Rewards"
+      reward_token_symbol: dXCAD
+      reward_token_address_hex: "0x327082dd216ff625748b13e156b9d1a5d3dd41f2"
+      distributor_name: dXCAD
+      distributor_address_hex: "0x21632fD88F69fBf7701Ef445eE4ff55a505D6970"
+      developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "145000000000000000000" #145 dXCAD per week
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1647417600 #8am GMT Wed Mar 16 2022
+        total_number_of_epochs: 4
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
