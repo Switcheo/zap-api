@@ -301,11 +301,11 @@ mainnet:
       developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "30000000"
+        tokens_per_epoch: "175000000" #17,500 Lunr
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
-        total_number_of_epochs: 8
+        total_number_of_epochs: 16
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
@@ -347,6 +347,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1xfcg9hfpdlmz2aytz0s4dww35hfa6s0jnjut5f: 1  # dXCAD
+    - name: "LUNR Rewards 2.5 (zETH)"
+      reward_token_symbol: zETH
+      reward_token_address_hex: "0x2ca315f4329654614d1e8321f9c252921192c5f2" #zETH
+      distributor_name: LUNRDistributor2
+      distributor_address_hex: "0xfeecaf5e493bc3755cc79da2bee70b6e54f58e84"
+      developer_address: zil10sgnjr86jd3yg6l97tvp4ck4qsh02hszfxj3ns
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "750000000000000000" #0.75 zETH
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1646812801 #8:00:01am GMT Wed Mar 9 2022
+        total_number_of_epochs: 8
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:
+        zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
