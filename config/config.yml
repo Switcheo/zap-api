@@ -351,7 +351,7 @@ mainnet:
       reward_token_symbol: dXCAD
       reward_token_address_hex: "0x327082dd216ff625748b13e156b9d1a5d3dd41f2"
       distributor_name: dXCAD
-      distributor_address_hex: "0x21632fD88F69fBf7701Ef445eE4ff55a505D6970"
+      distributor_address_hex: "0x21632fd88f69fbf7701ef445ee4ff55a505d6970"
       developer_address: zil1yfpwa8xvxmgnm520kptpk4yym9qggm9ac3yzgw
       emission_info:
         epoch_period: 604800 # 1 week
