@@ -263,11 +263,11 @@ mainnet:
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "100000000000" # 1m PELE to make up for dev wallet inclusion
+        tokens_per_epoch: "100000000000"
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1641369600 # 8am GMT Wed Jan 5 2022
-        total_number_of_epochs: 5 # originally 6
+        distribution_start_time: 1647878400 # Mon Mar 21 2022 16:00:00 GMT+0000
+        total_number_of_epochs: 10
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
