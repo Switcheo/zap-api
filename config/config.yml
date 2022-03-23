@@ -266,25 +266,7 @@ mainnet:
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
-        total_number_of_epochs: 1 # 6 -> 1 (cancelling this config)
-        initial_epoch_number: 0
-        developer_token_ratio_bps: 0
-        trader_token_ratio_bps: 0
-      incentivized_pools:                         
-        zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
-    - name: "PELE Rewards"
-      reward_token_symbol: PELE
-      reward_token_address_hex: "0x55d66385a975a25cd7c9bb7cb8b1b11a56436789"
-      distributor_name: PELE Network
-      distributor_address_hex: "0xdd80d40486932aff9aac3c9bb7c11bc9d249a6da"
-      developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
-      emission_info:
-        epoch_period: 604800 # 1 week
-        tokens_per_epoch: "100000000000"
-        tokens_for_retroactive_distribution: "0"
-        retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1647878400 # Mon Mar 21 2022 16:00:00 GMT+0000
-        total_number_of_epochs: 10
+        total_number_of_epochs: 12 # 6m tokens
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
@@ -398,6 +380,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 2 # LUNR
+    - name: "PELE Rewards"
+      reward_token_symbol: PELE
+      reward_token_address_hex: "0x55d66385a975a25cd7c9bb7cb8b1b11a56436789"
+      distributor_name: PELE Network
+      distributor_address_hex: "0xdd80d40486932aff9aac3c9bb7c11bc9d249a6da"
+      developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "100000000000"
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1648022400 # Wed Mar 23 2022 08:00:00 GMT+0000
+        total_number_of_epochs: 10
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:                         
+        zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
