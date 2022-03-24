@@ -210,7 +210,7 @@ pub fn get_liquidity(
   conn: &PgConnection,
   timestamp: Option<i64>,
   address: Option<&str>,
-) -> Result<Vec<models::LiquidityWithZil>, diesel::result::Error> {
+) -> Result<Vec<models::Liquidity>, diesel::result::Error> {
   use crate::schema::liquidity_changes::dsl::*;
 
   let mut query = liquidity_changes
@@ -218,7 +218,6 @@ pub fn get_liquidity(
     .select((
       sql::<Text>("token_address AS pool"),
       sql::<Numeric>("SUM(change_amount) AS amount"),
-      sql::<Numeric>("SUM(zil_amount) AS zil_amount")
     ))
     .into_boxed::<Pg>();
 
@@ -230,7 +229,7 @@ pub fn get_liquidity(
     query = query.filter(block_timestamp.le(NaiveDateTime::from_timestamp(timestamp, 0)))
   }
 
-  Ok(query.load::<models::LiquidityWithZil>(conn)?)
+  Ok(query.load::<models::Liquidity>(conn)?)
 }
 
 /// Gets the swap volume for all pools over the given period in zil / token amounts.

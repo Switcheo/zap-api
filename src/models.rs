@@ -70,16 +70,6 @@ pub struct Liquidity {
   pub amount: BigDecimal,
 }
 
-#[derive(Debug, Queryable, QueryableByName, Serialize, Deserialize, PartialEq)]
-pub struct LiquidityWithZil {
-  #[sql_type="Text"]
-  pub pool: String,
-  #[sql_type="Numeric"]
-  pub amount: BigDecimal,
-  #[sql_type="Numeric"]
-  pub zil_amount: BigDecimal,
-}
-
 #[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
 pub struct LiquidityFromProvider {
   #[sql_type="Text"]
