@@ -393,7 +393,7 @@ mainnet:
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1648022400 # Wed Mar 23 2022 08:00:00 GMT+0000
         total_number_of_epochs: 10
-        initial_epoch_number: 0
+        initial_epoch_number: 12
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:                         
