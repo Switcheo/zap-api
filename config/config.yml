@@ -302,7 +302,7 @@ mainnet:
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1641974400 #8am GMT Wed Jan 12 2022
-        total_number_of_epochs: 16
+        total_number_of_epochs: 20
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
@@ -374,7 +374,7 @@ mainnet:
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1646812801 #8:00:01am GMT Wed Mar 9 2022
-        total_number_of_epochs: 8
+        total_number_of_epochs: 12
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
