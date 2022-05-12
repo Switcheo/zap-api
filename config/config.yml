@@ -398,6 +398,24 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:                         
         zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
+    - name: "EVZ Rewards"
+      reward_token_symbol: EVZ
+      reward_token_address_hex: "0xb8975762E4D13850F1367F9020Ae123eE300897C"
+      distributor_name: EnviZion
+      distributor_address_hex: "0x940c02e471a082cc3062b7cc446e652e64fe13fe"
+      developer_address: zil1tjx62aphejf0jp9st2a677f5jz7sg50tdtvqh8
+      emission_info:
+        epoch_period: 604800 # 1 week
+        tokens_per_epoch: "500000000000000" #5,000,000 EVZ per week
+        tokens_for_retroactive_distribution: "0"
+        retroactive_distribution_cutoff_time: 0
+        distribution_start_time: 1652860800 # Wed May 18 2022 08:00:00 GMT+0000
+        total_number_of_epochs: 120
+        initial_epoch_number: 0
+        developer_token_ratio_bps: 0
+        trader_token_ratio_bps: 0
+      incentivized_pools:                         
+        zil1hzt4wchy6yu9pufk07gzptsj8m3spztuqmeucs: 1 # EVZ
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
   distributions:
