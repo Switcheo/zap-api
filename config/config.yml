@@ -400,7 +400,7 @@ mainnet:
         zil12htx8pdfwk39e47fhd7t3vd3rftyxeuf9px354: 1 # PELE
     - name: "EVZ Rewards"
       reward_token_symbol: EVZ
-      reward_token_address_hex: "0xb8975762E4D13850F1367F9020Ae123eE300897C"
+      reward_token_address_hex: "0xb8975762e4d13850f1367f9020ae123ee300897c"
       distributor_name: EnviZion
       distributor_address_hex: "0x940c02e471a082cc3062b7cc446e652e64fe13fe"
       developer_address: zil1tjx62aphejf0jp9st2a677f5jz7sg50tdtvqh8
