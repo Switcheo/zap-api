@@ -409,7 +409,7 @@ mainnet:
         tokens_per_epoch: "500000000000000" #5,000,000 EVZ per week
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1652860800 # Wed May 18 2022 08:00:00 GMT+0000
+        distribution_start_time: 1652256000 # Wed May 11 2022 08:00:00 GMT+0000
         total_number_of_epochs: 120
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
