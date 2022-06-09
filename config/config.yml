@@ -262,11 +262,11 @@ mainnet:
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "70000000000" # 700k PELE
+        tokens_per_epoch: "100000000000" # 1.0m PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1640160000 # 8am GMT Wed Dec 22 2021
-        total_number_of_epochs: 29
+        total_number_of_epochs: 12 # 6m tokens
         initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
@@ -388,11 +388,11 @@ mainnet:
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "100000000000"
+        tokens_per_epoch: "70000000000" # 700k PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
         distribution_start_time: 1648022400 # Wed Mar 23 2022 08:00:00 GMT+0000
-        total_number_of_epochs: 10
+        total_number_of_epochs: 27
         initial_epoch_number: 12
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
