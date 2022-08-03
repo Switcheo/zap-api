@@ -37,20 +37,15 @@ mainnet:
         trader_token_ratio_bps: 0
       incentivized_pools:
         zil1p5suryq6q647usxczale29cu3336hhp376c627: 40 # ZWAP
-        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 4  # XCAD
+        zil1z5l74hwy3pc3pr3gdh3nqju4jlyp0dzkhq2f5y: 3  # XCAD
         zil1sxx29cshups269ahh5qjffyr58mxjv9ft78jqy: 4  # zUSDT
         zil14pzuzq6v6pmmmrfjhczywguu0e97djepxt8g3e: 1  # gZIL
         zil1zu72vac254htqpg3mtywdcfm84l3dfd9qzww8t: 3  # XSGD
         zil1n02sfv2ytldc7jnyx3f7c9zehwdzlxy2ykrhf9: 2  # XIDR
         zil19j33tapjje2xzng7svslnsjjjgge930jx0w09v: 2  # zETH
-        zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 2  # zWBTC
+        zil1wha8mzaxhm22dpm5cav2tepuldnr8kwkvmqtjq: 1  # zWBTC
         zil1xxl6yp2twxvljdnn87g9fk7wykdrcv66xdy4rc: 1  # Lunr
-        zil1xfcg9hfpdlmz2aytz0s4dww35hfa6s0jnjut5f: 2  # dXCAD
-        zil19lr3vlpm4lufu2q94mmjvdkvmx8wdwajuntzx2: 2  # DMZ
-        zil1yk93f957fanapf0yszgm84p62xrxxfytj4d2tl: 2  # SWTH
-        zil1kwfu3x9n6fsuxc4ynp72uk5rxge25enw7zsf9z: 1  # SCO
-        zil1jy3g5j9w5njqwxuuv3zwkz9syyueelmu7g080v: 0  # FEES
-        zil1m3m5jqqcaemtefnlk795qpw59daukra8prc43e: 2  # Huny
+        zil1m3m5jqqcaemtefnlk795qpw59daukra8prc43e: 1  # Huny
     - name: "STREAM Rewards"
       reward_token_symbol: STREAM
       reward_token_address_hex: "0xa3eafd5021f6b9c36fd02ed58aa1d015f2238791"
