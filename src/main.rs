@@ -316,6 +316,7 @@ async fn generate_epoch(
       *current += dt
     }
 
+    // override liquidity rewards to contract
     let hive_address = "0x7ef6033783cef7720952394015da263a5501b8e3";
     let ht = match accumulator.get(hive_address) {
       Some (amount) => amount.clone(),
