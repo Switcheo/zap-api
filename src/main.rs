@@ -316,6 +316,18 @@ async fn generate_epoch(
       *current += dt
     }
 
+    let hive_address = "0x7ef6033783cef7720952394015da263a5501b8e3";
+    let ht = match accumulator.get(hive_address) {
+      Some (amount) => amount.clone(),
+      None => BigDecimal::default(),
+    };
+    if ht.is_positive() {
+      accumulator.remove(hive_address);
+
+      let current = accumulator.entry(distr.developer_address().to_owned()).or_insert(BigDecimal::default());
+      *current += ht
+    }
+
     let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
     if total_distributed > epoch_info.tokens_for_epoch() {
       panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
