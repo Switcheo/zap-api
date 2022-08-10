@@ -618,28 +618,6 @@ pub fn insert_claim(
   Ok(())
 }
 
-/// Inserts a backfill completion into the db ignoring duplicates.
-pub fn insert_backfill_completion(
-  new_backfill_completion: models::NewBackfillCompletion,
-  conn: &PgConnection,
-) -> Result<(), diesel::result::Error> {
-  use crate::schema::backfill_completions::dsl::*;
-
-  let res = diesel::insert_into(backfill_completions)
-    .values(&new_backfill_completion)
-    .execute(conn);
-
-  if let Err(e) = res {
-    match e {
-      diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-        debug!("Ignoring duplicate backfill_completion entry"),
-      _ => return Err(e)
-    }
-  }
-
-  Ok(())
-}
-
 pub fn insert_chain_event(
   conn: &PgConnection,
   new_chain_event: models::NewChainEvent,
@@ -689,17 +667,6 @@ pub fn epoch_exists(
   use crate::schema::distributions::dsl::*;
 
   Ok(diesel::select(exists(distributions.filter(epoch_number.eq(epoch)).filter(distributor_address.eq(distr_address))))
-    .get_result(conn)?)
-}
-
-pub fn backfill_completed(
-  conn: &PgConnection,
-  address: &str,
-  event: &str,
-) -> Result<bool, diesel::result::Error> {
-  use crate::schema::backfill_completions::dsl::*;
-
-  Ok(diesel::select(exists(backfill_completions.filter(contract_address.eq(address)).filter(event_name.eq(event))))
     .get_result(conn)?)
 }
 

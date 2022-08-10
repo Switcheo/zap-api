@@ -5,7 +5,7 @@ use serde::{Serialize, Deserialize};
 use serde_json::Value;
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, backfill_completions, chain_events};
+use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, chain_events};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -174,20 +174,6 @@ pub struct NewClaim<'a> {
   pub distributor_address: &'a str,
   pub epoch_number: &'a i32,
   pub amount: &'a BigDecimal,
-}
-
-#[derive(Debug, Identifiable, Queryable, Serialize)]
-pub struct BackfillCompletion {
-  pub id: Uuid,
-  pub contract_address: String,
-  pub event_name: String,
-}
-
-#[derive(Debug, Clone, Insertable)]
-#[table_name="backfill_completions"]
-pub struct NewBackfillCompletion<'a> {
-  pub contract_address: &'a str,
-  pub event_name: &'a str,
 }
 
 #[derive(Debug, Clone, Identifiable, Queryable, Serialize)]
