@@ -14,7 +14,7 @@ bigdecimal = { version = "^0.1.2", features = ["serde"] }
 chrono = { version = "^0.4.19", features = ["serde"] }
 futures = "0.3"
 ring = "^0.16.19"
-diesel = { version = "^1.4.5", features = ["postgres", "r2d2", "chrono", "numeric", "uuid"] }
+diesel = { version = "^1.4.5", features = ["postgres", "serde_json", "r2d2", "chrono", "numeric", "uuid"] }
 diesel_migrations = "1.4.0"
 dotenv = "^0.15.0"
 env_logger = "^0.8.2"
@@ -28,6 +28,7 @@ bech32 = "0.7.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 serde_yaml = "0.8.17"
+strum_macros = "0.24.3"
 uuid = { version = "^0.6.5", features = ["serde"] }
 
 [[bin]]

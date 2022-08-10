@@ -1,13 +1,16 @@
 use diesel::debug_query;
 use diesel::pg::Pg;
+use diesel::pg::expression::dsl;
 use diesel::prelude::*;
-use diesel::dsl::{sql, exists};
+use diesel::dsl::{sql, exists, max, update};
 use diesel::sql_types::{Text, Numeric, Timestamp};
 use chrono::{NaiveDateTime, Utc};
 use redis::Commands;
+use uuid::Uuid;
 
 use crate::models;
 use crate::pagination::*;
+use crate::constants::{ChainEventStatus};
 
 /// Get paginated swaps.
 pub fn get_swaps(
@@ -637,6 +640,28 @@ pub fn insert_backfill_completion(
   Ok(())
 }
 
+pub fn insert_chain_event(
+  conn: &PgConnection,
+  new_chain_event: models::NewChainEvent,
+) -> Result<(), diesel::result::Error> {
+  use crate::schema::chain_events::dsl::*;
+
+  let res = diesel::insert_into(chain_events)
+    .values(&new_chain_event)
+    .execute(conn);
+
+  if let Err(e) = res {
+    match e {
+      diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
+        debug!("Ignoring duplicate chain event entry"),
+      _ => return Err(e)
+    }
+  }
+
+  Ok(())
+}
+
+
 pub fn swap_exists(
   conn: &PgConnection,
   hash: &str,
@@ -676,4 +701,51 @@ pub fn backfill_completed(
 
   Ok(diesel::select(exists(backfill_completions.filter(contract_address.eq(address)).filter(event_name.eq(event))))
     .get_result(conn)?)
+}
+
+pub fn last_sync_height(
+  conn: &PgConnection,
+) -> Result<i32, diesel::result::Error> {
+  use crate::schema::chain_events::dsl::*;
+  let result = chain_events.select(max(block_height)).first(conn)?;
+  let last_height = match result {
+    Some(height) => height,
+    None => 0,
+  };
+  Ok(last_height) 
+}
+
+pub fn pop_unprocessed_events(
+  conn: &PgConnection,
+  limit: i64,
+) -> Result<Vec<models::ChainEvent>, diesel::result::Error> {
+  use crate::schema::chain_events::dsl::*;
+
+  let events = chain_events
+    .filter(processed.eq(ChainEventStatus::NotStarted.to_string()))
+    .limit(limit)
+    .order(block_height.desc())
+    .load::<models::ChainEvent>(conn)?;
+
+  if events.len() > 0 {
+    let ids: Vec<Uuid> = events.clone().into_iter().map(|e| e.id).collect();
+    let update_query = update(chain_events).set(processed.eq(ChainEventStatus::Processing.to_string())).filter(id.eq(dsl::any(ids)));
+    update_query.execute(conn)?;
+  }
+
+  Ok(events)
+}
+
+pub fn mark_event_processed(
+  conn: &PgConnection,
+  event_ids: Vec<Uuid>,
+  status: ChainEventStatus,
+) -> Result<usize, diesel::result::Error> {
+  use crate::schema::chain_events::dsl::*;
+
+  let result = update(chain_events)
+    .set(processed.eq(status.to_string()))
+    .filter(id.eq(dsl::any(event_ids))).execute(conn)?;
+
+  Ok(result)
 }

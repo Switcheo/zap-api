@@ -7,6 +7,21 @@ table! {
 }
 
 table! {
+    chain_events (id) {
+        id -> Uuid,
+        block_height -> Int4,
+        block_timestamp -> Timestamp,
+        tx_hash -> Varchar,
+        event_index -> Int4,
+        contract_address -> Varchar,
+        initiator_address -> Varchar,
+        event_name -> Varchar,
+        event_params -> Json,
+        processed -> Varchar,
+    }
+}
+
+table! {
     claims (id) {
         id -> Uuid,
         transaction_hash -> Varchar,
@@ -89,6 +104,7 @@ table! {
 
 allow_tables_to_appear_in_same_query!(
     backfill_completions,
+    chain_events,
     claims,
     distributions,
     liquidity_changes,

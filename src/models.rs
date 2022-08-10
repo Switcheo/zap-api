@@ -2,9 +2,10 @@ use bigdecimal::{BigDecimal};
 use chrono::{NaiveDateTime};
 use diesel::sql_types::{Text, Numeric};
 use serde::{Serialize, Deserialize};
+use serde_json::Value;
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, backfill_completions};
+use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, backfill_completions, chain_events};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -187,4 +188,32 @@ pub struct BackfillCompletion {
 pub struct NewBackfillCompletion<'a> {
   pub contract_address: &'a str,
   pub event_name: &'a str,
+}
+
+#[derive(Debug, Clone, Identifiable, Queryable, Serialize)]
+pub struct ChainEvent {
+  pub id: Uuid,
+  pub block_height: i32,
+  pub block_timestamp: NaiveDateTime,
+  pub tx_hash: String,
+  pub event_index: i32,
+  pub contract_address: String,
+  pub initiator_address: String,
+  pub event_name: String,
+  pub event_params: Value,
+  pub processed: String,
+}
+
+#[derive(Debug, Clone, Insertable)]
+#[table_name="chain_events"]
+pub struct NewChainEvent<'a> {
+  pub block_height: &'a i32,
+  pub block_timestamp: &'a NaiveDateTime,
+  pub tx_hash: &'a str,
+  pub event_index: &'a i32,
+  pub contract_address: &'a str,
+  pub initiator_address: &'a str,
+  pub event_name: &'a str,
+  pub event_params: &'a Value,
+  pub processed: &'a str,
 }

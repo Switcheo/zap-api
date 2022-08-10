@@ -16,3 +16,30 @@ pub fn round_down(bd: BigDecimal, round_digits: i64) -> BigDecimal {
   }
   bd.with_scale(round_digits)
 }
+
+#[derive(Debug)]
+pub enum FetchError {
+    // We will defer to the parse error implementation for their error.
+    // Supplying extra info requires adding more data to the type.
+    Fetch(reqwest::Error),
+    Parse(serde_json::Error),
+    Database(diesel::result::Error),
+}
+
+impl From<reqwest::Error> for FetchError {
+  fn from(err: reqwest::Error) -> FetchError {
+    FetchError::Fetch(err)
+  }
+}
+
+impl From<serde_json::Error> for FetchError {
+  fn from(err: serde_json::Error) -> FetchError {
+    FetchError::Parse(err)
+  }
+}
+
+impl From<diesel::result::Error> for FetchError {
+  fn from(err: diesel::result::Error) -> FetchError {
+    FetchError::Database(err)
+  }
+}

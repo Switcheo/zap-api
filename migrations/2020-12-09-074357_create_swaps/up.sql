@@ -1,4 +1,5 @@
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION pgcrypto;
 
 CREATE TABLE swaps (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
