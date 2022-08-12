@@ -416,6 +416,7 @@ mainnet:
         zil1hzt4wchy6yu9pufk07gzptsj8m3spztuqmeucs: 1 # EVZ
 testnet:
   zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
+  zilswap_min_sync_at: 4528300
   distributions:
     - name: "ZWAP Rewards Legacy"
       reward_token_symbol: ZWAP

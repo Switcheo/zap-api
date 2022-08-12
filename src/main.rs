@@ -577,7 +577,7 @@ async fn main() -> std::io::Result<()> {
   // worker config
   let contract_hash = serde_yaml::from_value::<String>(config["zilswap_address_hex"].clone()).expect("invalid zilswap_address_hex");
   let distributor_contract_hashes = distr_configs.iter().map(|d| d.distributor_address()).collect();
-  let min_sync_height: u32 = serde_yaml::from_value(config["zilswap_min_sync_at"].clone()).expect("invalid zilswap_deployed_at");
+  let min_sync_height: u32 = serde_yaml::from_value(config["zilswap_min_sync_at"].clone()).expect("invalid zilswap_min_sync_at");
   let rpc_url = std::env::var("RPC_URL").unwrap_or("https://api.zilliqa.com".to_string());
   let worker_config = WorkerConfig::new(network, contract_hash.as_str(), distributor_contract_hashes, min_sync_height, rpc_url);
 
