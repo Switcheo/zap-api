@@ -1,16 +1,13 @@
 use diesel::debug_query;
 use diesel::pg::Pg;
-use diesel::pg::expression::dsl;
 use diesel::prelude::*;
-use diesel::dsl::{sql, exists, max, update};
+use diesel::dsl::{sql, exists, max};
 use diesel::sql_types::{Text, Numeric, Timestamp};
 use chrono::{NaiveDateTime, Utc};
 use redis::Commands;
-use uuid::Uuid;
 
 use crate::models;
 use crate::pagination::*;
-use crate::constants::{ChainEventStatus};
 
 /// Get paginated swaps.
 pub fn get_swaps(
@@ -618,20 +615,20 @@ pub fn insert_claim(
   Ok(())
 }
 
-pub fn insert_chain_event(
+pub fn insert_block_sync(
   conn: &PgConnection,
-  new_chain_event: models::NewChainEvent,
+  new_block_sync: models::NewBlockSync,
 ) -> Result<(), diesel::result::Error> {
-  use crate::schema::chain_events::dsl::*;
+  use crate::schema::block_syncs::dsl::*;
 
-  let res = diesel::insert_into(chain_events)
-    .values(&new_chain_event)
+  let res = diesel::insert_into(block_syncs)
+    .values(&new_block_sync)
     .execute(conn);
 
   if let Err(e) = res {
     match e {
       diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-        debug!("Ignoring duplicate chain event entry"),
+        debug!("Ignoring duplicate block sync entry"),
       _ => return Err(e)
     }
   }
@@ -673,46 +670,11 @@ pub fn epoch_exists(
 pub fn last_sync_height(
   conn: &PgConnection,
 ) -> Result<i32, diesel::result::Error> {
-  use crate::schema::chain_events::dsl::*;
-  let result = chain_events.select(max(block_height)).first(conn)?;
+  use crate::schema::block_syncs::dsl::*;
+  let result = block_syncs.select(max(block_height)).first(conn)?;
   let last_height = match result {
     Some(height) => height,
     None => 0,
   };
   Ok(last_height) 
-}
-
-pub fn pop_unprocessed_events(
-  conn: &PgConnection,
-  limit: i64,
-) -> Result<Vec<models::ChainEvent>, diesel::result::Error> {
-  use crate::schema::chain_events::dsl::*;
-
-  let events = chain_events
-    .filter(processed.eq(ChainEventStatus::NotStarted.to_string()))
-    .limit(limit)
-    .order(block_height.desc())
-    .load::<models::ChainEvent>(conn)?;
-
-  if events.len() > 0 {
-    let ids: Vec<Uuid> = events.clone().into_iter().map(|e| e.id).collect();
-    let update_query = update(chain_events).set(processed.eq(ChainEventStatus::Processing.to_string())).filter(id.eq(dsl::any(ids)));
-    update_query.execute(conn)?;
-  }
-
-  Ok(events)
-}
-
-pub fn mark_event_processed(
-  conn: &PgConnection,
-  event_ids: Vec<Uuid>,
-  status: ChainEventStatus,
-) -> Result<usize, diesel::result::Error> {
-  use crate::schema::chain_events::dsl::*;
-
-  let result = update(chain_events)
-    .set(processed.eq(status.to_string()))
-    .filter(id.eq(dsl::any(event_ids))).execute(conn)?;
-
-  Ok(result)
 }

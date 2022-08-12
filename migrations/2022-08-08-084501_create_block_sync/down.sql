@@ -1,2 +1,2 @@
 -- This file should undo anything in `up.sql`
-DROP TABLE chain_events;
+DROP TABLE block_syncs;

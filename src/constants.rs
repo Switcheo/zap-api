@@ -46,28 +46,3 @@ impl fmt::Display for Network {
   }
 }
 
-#[derive(Clone)]
-pub enum ChainEventStatus {
-  NotStarted,
-  Processing,
-  Completed,
-}
-
-impl ChainEventStatus {
-  pub fn to_string(&self) -> String {
-    match self {
-      ChainEventStatus::NotStarted => "not_started".to_string(),
-      ChainEventStatus::Processing => "processing".to_string(),
-      ChainEventStatus::Completed => "completed".to_string(),
-    }
-  }
-
-  pub fn from_str(value: String) -> Option<Self> {
-    match value.as_str() {
-      "not_started" => Some(ChainEventStatus::NotStarted),
-      "processing" => Some(ChainEventStatus::Processing),
-      "completed" => Some(ChainEventStatus::Completed),
-      _ => None,
-    }
-  }
-}

@@ -2,10 +2,9 @@ use bigdecimal::{BigDecimal};
 use chrono::{NaiveDateTime};
 use diesel::sql_types::{Text, Numeric};
 use serde::{Serialize, Deserialize};
-use serde_json::Value;
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, chain_events};
+use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, block_syncs};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -177,29 +176,17 @@ pub struct NewClaim<'a> {
 }
 
 #[derive(Debug, Clone, Identifiable, Queryable, Serialize)]
-pub struct ChainEvent {
+pub struct BlockSync {
   pub id: Uuid,
   pub block_height: i32,
   pub block_timestamp: NaiveDateTime,
-  pub tx_hash: String,
-  pub event_index: i32,
-  pub contract_address: String,
-  pub initiator_address: String,
-  pub event_name: String,
-  pub event_params: Value,
-  pub processed: String,
+  pub num_txs: i32,
 }
 
 #[derive(Debug, Clone, Insertable)]
-#[table_name="chain_events"]
-pub struct NewChainEvent<'a> {
+#[table_name="block_syncs"]
+pub struct NewBlockSync<'a> {
   pub block_height: &'a i32,
   pub block_timestamp: &'a NaiveDateTime,
-  pub tx_hash: &'a str,
-  pub event_index: &'a i32,
-  pub contract_address: &'a str,
-  pub initiator_address: &'a str,
-  pub event_name: &'a str,
-  pub event_params: &'a Value,
-  pub processed: &'a str,
+  pub num_txs: &'a i32,
 }
