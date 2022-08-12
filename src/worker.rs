@@ -215,10 +215,10 @@ impl EventFetchActor {
       .run::<_, utils::FetchError, _>(|| {
         let prev_height = match in_prev_height == 0 {
           true => {
-            debug!("QueryNewBlocks: min_sync_height {}", self.config.min_sync_height);
+            info!("QueryNewBlocks: min_sync_height {}", self.config.min_sync_height);
             let last_sync_height: u32 = db::last_sync_height(&conn)?.try_into().expect("invalid last sync height");
 
-            debug!("QueryNewBlocks: last_sync_height {}", last_sync_height);
+            info!("QueryNewBlocks: last_sync_height {}", last_sync_height);
             let min_height = self.config.min_sync_height;
             max(last_sync_height, min_height)
           },
@@ -229,7 +229,7 @@ impl EventFetchActor {
           return Ok(prev_height)
         }
 
-        debug!("QueryNewBlocks: sync {}/{}", prev_height + 1, chain_height);
+        info!("QueryNewBlocks: sync {}/{}", prev_height + 1, chain_height);
 
         let query_count: u32 = min(100, chain_height - prev_height).try_into().expect("invalid chain height");
         let last_height = prev_height + query_count - 1;
