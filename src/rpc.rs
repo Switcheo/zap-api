@@ -89,9 +89,15 @@ pub struct BlockHeader {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+#[serde(rename_all = "PascalCase")]
+pub struct BlockBody {
+  pub block_hash: String,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct BlockResult {
   pub header: BlockHeader,
-  pub body: Value,
+  pub body: BlockBody,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]

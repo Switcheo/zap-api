@@ -225,16 +225,20 @@ impl EventFetchActor {
           false => in_prev_height,
         };
         let chain_height = self.zil_client.get_latest_block()?;
+        if prev_height >= chain_height {
+          return Ok(prev_height)
+        }
+
         debug!("QueryNewBlocks: sync {}/{}", prev_height + 1, chain_height);
 
         let query_count: u32 = min(100, chain_height - prev_height).try_into().expect("invalid chain height");
-        let last_height = prev_height + query_count;
+        let last_height = prev_height + query_count - 1;
         trace!("QueryNewBlocks: from {} - {}", prev_height, last_height);
 
         let new_prev_height = last_height;
         let start_height = prev_height + 1;
 
-        for height in start_height .. last_height {
+        for height in start_height..=last_height {
           let msg = Fetch::process_block(height);
           let next_msg = NextFetch::from(msg, None);
           self.coordinator.do_send(next_msg)
@@ -257,6 +261,11 @@ impl EventFetchActor {
       .run::<_, utils::FetchError, _>(|| {
         let block = self.zil_client.get_block(&height)?;
 
+        if block.body.block_hash == "0000000000000000000000000000000000000000000000000000000000000000" {
+          trace!("ProcessBlock: block not available on node {}", height);
+          return Ok(())
+        }
+
         let block_height = block.header.block_num.parse::<u32>().expect("invalid block height");
         let timestamp = block.header.timestamp.parse::<i64>().expect("invalid block timestamp");
         let timestamp_seconds = timestamp / 1000;
@@ -272,8 +281,8 @@ impl EventFetchActor {
         if block.header.num_txns > 0 {
           let txs_result = self.zil_client.get_block_txs(&height)?;
           let block_txs = txs_result.list();
-          trace!("ProcessBlock: block {} found txs {}", height, block_txs.len());
 
+          trace!("ProcessBlock: block {} found txs {}", height, block_txs.len());
           for tx_hash in block_txs {
             self.process_tx(tx_hash, &new_block_sync)?;
           }
