@@ -284,7 +284,7 @@ impl EventFetchActor {
 
           trace!("ProcessBlock: block {} found txs {}", height, block_txs.len());
           for tx_hash in block_txs {
-            self.process_tx(tx_hash, &new_block_sync)?;
+            self.process_tx(&conn, tx_hash, &new_block_sync)?;
           }
         }
 
@@ -298,7 +298,7 @@ impl EventFetchActor {
 
   /// query one single block from chain based on given height.
   //  list all transactions on block and queue all with `SaveTx` job.
-  fn process_tx(&self, tx_hash: String, block: &models::NewBlockSync) -> Result<(), utils::FetchError> {
+  fn process_tx(&self, conn: &PgConnection, tx_hash: String, block: &models::NewBlockSync) -> Result<(), utils::FetchError> {
     
     trace!("ProcessTx: handle {} {}", block.block_height, tx_hash);
 
@@ -344,16 +344,14 @@ impl EventFetchActor {
         params: event.params.clone(),
       };
 
-      self.process_event(&block, &tx_result, &chain_event)?;
+      self.process_event(conn, &block, &tx_result, &chain_event)?;
     }
     Ok(())
   }
 
   /// poll chain events from database and persist events into database
   //  queue events for retry if failed.
-  fn process_event(&self, block: &models::NewBlockSync, tx_result: &TxResult, event: &ChainEvent) -> PersistResult {
-    let conn = self.db_pool.get().expect("couldn't get db connection from pool");
-    
+  fn process_event(&self, conn: &PgConnection, block: &models::NewBlockSync, tx_result: &TxResult, event: &ChainEvent) -> PersistResult {
     let event_type = Event::from_str(event.name.as_str()).unwrap();
     let persist = match event_type {
       Event::Minted => persist_mint_event,
@@ -361,15 +359,7 @@ impl EventFetchActor {
       Event::Swapped => persist_swap_event,
       Event::Claimed => persist_claim_event,
     };
-    match persist(&conn, &block, &tx_result, &event) {
-      Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
-        // mark duplicate and continue processing other events
-        debug!("Ignoring duplicate {} entry, {} {}", event.name, event.tx_hash, event.event_index);
-        Ok(true)
-      },
-      Err(err) => Err(err),
-      Ok(result) => Ok(result),
-    }
+    persist(conn, &block, &tx_result, &event)
   }
 }
 

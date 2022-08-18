@@ -568,6 +568,7 @@ pub fn insert_swap(
 
   diesel::insert_into(swaps)
     .values(&new_swap)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
@@ -582,6 +583,7 @@ pub fn insert_liquidity_change(
 
   diesel::insert_into(liquidity_changes)
     .values(&new_liquidity_change)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
@@ -610,6 +612,7 @@ pub fn insert_claim(
 
   diesel::insert_into(claims)
     .values(&new_claim)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
@@ -623,15 +626,8 @@ pub fn insert_block_sync(
 
   let res = diesel::insert_into(block_syncs)
     .values(&new_block_sync)
+    .on_conflict_do_nothing()
     .execute(conn);
-
-  if let Err(e) = res {
-    match e {
-      diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-        debug!("Ignoring duplicate block sync entry"),
-      _ => return Err(e)
-    }
-  }
 
   Ok(())
 }
