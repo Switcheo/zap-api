@@ -35,6 +35,9 @@ index 9ca268e..3f2ae98 100644
 +}
 +
  allow_tables_to_appear_in_same_query!(
+     backfill_completions,
+     block_syncs,
+     claims,
      distributions,
      liquidity_changes,
      swaps,

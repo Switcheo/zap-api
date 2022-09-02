@@ -1,20 +1,22 @@
 use actix::prelude::*;
-use bech32::{decode, FromBase32};
+use bech32::{encode, ToBase32};
 use bigdecimal::{BigDecimal};
+use chrono::{NaiveDateTime};
 use diesel::PgConnection;
 use diesel::r2d2::{Pool, ConnectionManager};
-use hex::{encode};
-use reqwest::blocking::Client;
-use reqwest::header::{HeaderMap, HeaderValue};
-use reqwest::Url;
+use hex;
+use ring::{digest};
+use serde_json::Value;
 use std::time::{Duration};
 use std::convert::TryInto;
 use std::ops::Neg;
+use std::cmp::{max, min};
 use std::str::FromStr;
 
 use crate::db;
 use crate::models;
-use crate::responses;
+use crate::utils;
+use crate::rpc::{ZilliqaClient, TxResult};
 use crate::constants::{Event, Network};
 
 #[derive(Clone)]
@@ -22,14 +24,24 @@ pub struct WorkerConfig {
   network: Network,
   contract_hash: String,
   distributor_contract_hashes: Vec<String>,
+  min_sync_height: u32,
+  rpc_url: String,
 }
 
 impl WorkerConfig {
-  pub fn new(network: Network, contract_hash: &str, distributor_contract_hashes: Vec<&str>) -> Self {
+  pub fn new(
+    network: Network,
+    contract_hash: &str,
+    distributor_contract_hashes: Vec<&str>,
+    min_sync_height: u32,
+    rpc_url: String,
+  ) -> Self {
     Self {
       network: network.clone(),
       contract_hash: contract_hash.to_owned(),
       distributor_contract_hashes: distributor_contract_hashes.into_iter().map(|h| h.to_owned()).collect(),
+      min_sync_height,
+      rpc_url,
     }
   }
 }
@@ -54,14 +66,11 @@ impl Actor for Coordinator {
     let config = self.config.clone();
     let db_pool = self.db_pool.clone();
     let address = ctx.address();
-    let arbiter = SyncArbiter::start(3, move || EventFetchActor::new(config.clone(), db_pool.clone(), address.clone()));
-    let contract_hash = self.config.contract_hash.as_str();
-    arbiter.do_send(Fetch::new(contract_hash, Event::Minted));
-    arbiter.do_send(Fetch::new(contract_hash, Event::Burnt));
-    arbiter.do_send(Fetch::new(contract_hash, Event::Swapped));
-    for h in &self.config.distributor_contract_hashes {
-      arbiter.do_send(Fetch::new(h.as_str(), Event::Claimed));
-    }
+    info!("Coordinator starting sync with {}.", config.rpc_url);
+
+    let arbiter = SyncArbiter::start(5, move || EventFetchActor::new(config.clone(), db_pool.clone(), address.clone()));
+    let sync_start_block = std::env::var("FORCE_SYNC_HEIGHT").unwrap_or("0".to_string()).parse::<u32>().expect("invalid env value for FORCE_SYNC_HEIGHT");
+    arbiter.do_send(Fetch::query_new_blocks(sync_start_block));
     self.arbiter = Some(arbiter);
   }
 
@@ -76,12 +85,46 @@ impl Actor for Coordinator {
 impl Handler<NextFetch> for Coordinator {
   type Result = ();
 
-  fn handle(&mut self, msg: NextFetch, ctx: &mut Context<Self>) -> Self::Result {
-    ctx.run_later(Duration::from_secs(msg.delay), move |worker, _| {
-      let arbiter = worker.arbiter.as_ref().unwrap();
-      arbiter.do_send(msg.get_next());
-    });
+  fn handle(&mut self, next_msg: NextFetch, ctx: &mut Context<Self>) -> Self::Result {
+    let maybe_msg = next_msg.get_next();
+    match maybe_msg {
+      Some(msg) => {
+        ctx.run_later(Duration::from_secs(next_msg.delay), move |worker, _| {
+          let arbiter = worker.arbiter.as_ref().unwrap();
+          arbiter.do_send(msg);
+        });
+      },
+      None => (),
+    }
   }
+}
+
+#[derive(Debug, Clone)]
+struct ChainEvent {
+  block_height: i32,
+  block_timestamp: NaiveDateTime,
+  tx_hash: String,
+  event_index: i32,
+  contract_address: String,
+  initiator_address: String,
+  name: String,
+  params: Value,
+}
+
+#[derive(Clone)]
+struct QueryNewBlocksParams {
+  prev_height: u32,
+}
+
+#[derive(Clone)]
+struct ProcessBlockParams {
+  height: u32,
+}
+
+#[derive(Clone)]
+enum FetchJob {
+  QueryNewBlocksParams(QueryNewBlocksParams),
+  ProcessBlockParams(ProcessBlockParams),
 }
 
 /// Define messages
@@ -92,38 +135,27 @@ impl Handler<NextFetch> for Coordinator {
 #[derive(Message)]
 #[rtype(result = "()")]
 struct NextFetch {
-  msg: Fetch,
+  msg: Option<Fetch>,
   delay: u64,
 }
 
 impl NextFetch {
-  fn poll(msg: &Fetch) -> Self {
+  fn from(msg: Fetch, delay: Option<u64>) -> Self {
     Self {
-      msg: Fetch {
-        contract_hash: msg.contract_hash.clone(),
-        event: msg.event.clone(),
-        page_number: 1,
-      },
-      delay: 30,
+      msg: Some(msg),
+      delay: delay.unwrap_or(1),
     }
   }
 
-  fn paginate(msg: &Fetch) -> Self {
-    Self {
-      msg: Fetch {
-        contract_hash: msg.contract_hash.clone(),
-        event: msg.event.clone(),
-        page_number: msg.page_number + 1,
-      },
-      delay: 1,
-    }
+  fn empty() -> Self {
+    Self { msg: None, delay: 1 }
   }
 
   fn retry(msg: &Fetch) -> Self {
-    Self { msg: msg.clone(), delay: 5 }
+    Self { msg: Some(msg.clone()), delay: 5 }
   }
 
-  fn get_next(&self) -> Fetch {
+  fn get_next(&self) -> Option<Fetch> {
     self.msg.clone()
   }
 }
@@ -132,50 +164,22 @@ impl NextFetch {
 #[derive(Message, Clone)]
 #[rtype(result = "()")]
 struct Fetch {
-  contract_hash: String,
-  event: Event,
-  page_number: u16,
+  job: FetchJob,
 }
 
 impl Fetch {
-  fn new(contract_hash: &str, event: Event) -> Self {
-    Self {
-      contract_hash: contract_hash.to_owned(),
-      event,
-      page_number: 1,
-    }
+  fn query_new_blocks(prev_height: u32) -> Fetch {
+    let job = FetchJob::QueryNewBlocksParams(QueryNewBlocksParams{ prev_height });
+    Self { job }
+  }
+  fn process_block(height: u32) -> Fetch {
+    let job = FetchJob::ProcessBlockParams(ProcessBlockParams{ height });
+    Self { job }
   }
 }
 
 /// The actual fetch result
-type FetchResult = Result<NextFetch, FetchError>;
-
-#[derive(Debug)]
-enum FetchError {
-    // We will defer to the parse error implementation for their error.
-    // Supplying extra info requires adding more data to the type.
-    Fetch(reqwest::Error),
-    Parse(serde_json::Error),
-    Database(diesel::result::Error),
-}
-
-impl From<reqwest::Error> for FetchError {
-  fn from(err: reqwest::Error) -> FetchError {
-    FetchError::Fetch(err)
-  }
-}
-
-impl From<serde_json::Error> for FetchError {
-  fn from(err: serde_json::Error) -> FetchError {
-    FetchError::Parse(err)
-  }
-}
-
-impl From<diesel::result::Error> for FetchError {
-  fn from(err: diesel::result::Error) -> FetchError {
-    FetchError::Database(err)
-  }
-}
+type FetchResult = Result<NextFetch, utils::FetchError>;
 
 type PersistResult = Result<bool, diesel::result::Error>;
 
@@ -183,56 +187,179 @@ type PersistResult = Result<bool, diesel::result::Error>;
 struct EventFetchActor {
   config: WorkerConfig,
   coordinator: Addr<Coordinator>,
-  client: Client,
+  zil_client: ZilliqaClient,
   db_pool: Pool<ConnectionManager<PgConnection>>
 }
 
 impl EventFetchActor {
   fn new(config: WorkerConfig, db_pool: Pool<ConnectionManager<PgConnection>>, coordinator: Addr<Coordinator>) -> Self {
-    let api_key = std::env::var("VIEWBLOCK_API_KEY").expect("VIEWBLOCK_API_KEY env var missing.");
-    let mut headers = HeaderMap::new();
-    headers.insert(
-      "X-APIKEY",
-      HeaderValue::from_str(api_key.as_str()).expect("Invalid API key."),
-    );
-
-    let client = Client::builder()
-      .default_headers(headers)
-      .build()
-      .expect("Failed to build client.");
-
+    let zil_client = ZilliqaClient::new(&config.rpc_url);
     Self {
+      zil_client,
       config,
       coordinator,
-      client,
       db_pool,
     }
   }
 
-  fn get_and_parse(&mut self, contract_hash: &str, event: Event, page_number: u16) -> Result<responses::ViewBlockResponse, FetchError> {
-    info!("Fetching {} for {} page {}", event, contract_hash, page_number);
+  /// query the chain for new blocks from provided previous height
+  //  if in_prev_height = 0, previous height will be inferred from database block_syncs table
+  //  or zilswap_min_sync_at on config file.
+  //  queues up to 100 new blocks with `ProcessBlock` job for syncing.
+  fn query_new_blocks(&self, in_prev_height: u32) -> FetchResult {
+    trace!("QueryNewBlocks: handle");
+    let conn = self.db_pool.get().expect("couldn't get db connection from pool");
 
-    let url = Url::parse_with_params(
-      format!(
-        "https://api.viewblock.io/v1/zilliqa/contracts/{}/events/{}",
-        contract_hash,
-        event
-      )
-      .as_str(),
-      &[
-        ("page", page_number.to_string()),
-        ("network", self.config.network.to_string()),
-      ],
-    ).expect("URL parsing failed!");
+    let new_prev_height = conn.build_transaction()
+      .read_write()
+      .run::<_, utils::FetchError, _>(|| {
+        let prev_height = match in_prev_height == 0 {
+          true => {
+            info!("QueryNewBlocks: min_sync_height {}", self.config.min_sync_height);
+            let last_sync_height: u32 = db::last_sync_height(&conn)?.try_into().expect("invalid last sync height");
 
-    let resp = self.client.get(url).send()?;
-    let body = resp.text()?;
+            info!("QueryNewBlocks: last_sync_height {}", last_sync_height);
+            let min_height = self.config.min_sync_height;
+            max(last_sync_height, min_height)
+          },
+          false => in_prev_height,
+        };
+        let chain_height = self.zil_client.get_latest_block()?;
+        if prev_height >= chain_height {
+          return Ok(prev_height)
+        }
 
-    debug!("Parsing {} for {} page {}", event, contract_hash, page_number);
-    trace!("{}", body);
-    let result: responses::ViewBlockResponse = serde_json::from_str(body.as_str())?;
+        info!("QueryNewBlocks: sync {}/{}", prev_height + 1, chain_height);
 
-    return Ok(result)
+        let query_count: u32 = min(100, chain_height - prev_height).try_into().expect("invalid chain height");
+        let last_height = prev_height + query_count - 1;
+        trace!("QueryNewBlocks: from {} - {}", prev_height, last_height);
+
+        let new_prev_height = last_height;
+        let start_height = prev_height + 1;
+
+        for height in start_height..=last_height {
+          let msg = Fetch::process_block(height);
+          let next_msg = NextFetch::from(msg, None);
+          self.coordinator.do_send(next_msg)
+        }
+        Ok(new_prev_height)
+      })?;
+
+    let msg = Fetch::query_new_blocks(new_prev_height);
+    Ok(NextFetch::from(msg, Some(20)))
+  }
+
+  /// query one single block from chain based on given height.
+  //  list all transactions on block and process all one by one.
+  fn process_block(&self, height: u32) -> FetchResult {
+    trace!("ProcessBlock: handle {}", height);
+    let conn = self.db_pool.get().expect("couldn't get db connection from pool");
+
+    conn.build_transaction()
+      .read_write()
+      .run::<_, utils::FetchError, _>(|| {
+        let block = self.zil_client.get_block(&height)?;
+
+        if block.body.block_hash == "0000000000000000000000000000000000000000000000000000000000000000" {
+          trace!("ProcessBlock: block not available on node {}", height);
+          return Ok(())
+        }
+
+        let block_height = block.header.block_num.parse::<u32>().expect("invalid block height");
+        let timestamp = block.header.timestamp.parse::<i64>().expect("invalid block timestamp");
+        let timestamp_seconds = timestamp / 1000;
+        let block_timestamp = chrono::NaiveDateTime::from_timestamp(timestamp_seconds / 1000, (timestamp_seconds % 1000).try_into().unwrap());
+        let num_txs = block.header.num_txns as i32;
+
+        let new_block_sync = models::NewBlockSync {
+          block_height: &(block_height as i32),
+          block_timestamp: &block_timestamp,
+          num_txs: &num_txs,
+        };
+
+        if block.header.num_txns > 0 {
+          let txs_result = self.zil_client.get_block_txs(&height)?;
+          let block_txs = txs_result.list();
+
+          trace!("ProcessBlock: block {} found txs {}", height, block_txs.len());
+          for tx_hash in block_txs {
+            self.process_tx(&conn, tx_hash, &new_block_sync)?;
+          }
+        }
+
+        db::insert_block_sync(&conn, new_block_sync)?;
+        debug!("ProcessBlock: block complete {} {}", &block_height, &num_txs);
+        Ok(())
+      })?;
+
+    Ok(NextFetch::empty())
+  }
+
+  /// query one single block from chain based on given height.
+  //  list all transactions on block and queue all with `SaveTx` job.
+  fn process_tx(&self, conn: &PgConnection, tx_hash: String, block: &models::NewBlockSync) -> Result<(), utils::FetchError> {
+    
+    trace!("ProcessTx: handle {} {}", block.block_height, tx_hash);
+
+    let tx_result = self.zil_client.get_transaction(&tx_hash)?;
+    let events = tx_result.receipt.events();
+    let events_len = events.len();
+    if events_len > 0 {
+      trace!("ProcessTx: processing events {}", events_len);
+    }
+
+    let pubkey_hex = &tx_result.sender_pub_key[2..];
+    let sender_pubkey = hex::decode(pubkey_hex).expect("invalid public key");
+    let pub_key_hash: Vec<u8> = digest::digest(&digest::SHA256, &sender_pubkey).as_ref().to_vec();
+    let address_bytes = &pub_key_hash[pub_key_hash.len() - 20..];
+    let initiator_address = format!("0x{}", hex::encode(&address_bytes));
+
+    let formatted_tx_hash = format!("0x{}", &tx_hash).as_str().to_owned();
+
+    for (event_index, event) in events.iter().enumerate() {
+      let event_type = match Event::from_str(event._eventname.as_str()) {
+        Some(event_type) => event_type,
+        None => continue,
+      };
+      match event_type {
+        Event::Minted | Event::Burnt | Event::Swapped => {
+          if event.address != self.config.contract_hash { continue }
+        },
+        Event::Claimed => {
+          if !self.config.distributor_contract_hashes.contains(&event.address) { continue }
+        }
+      };
+
+      debug!("ProcessTx: event {} {} {}", &formatted_tx_hash, event_index, event._eventname);
+
+      let chain_event = ChainEvent {
+        block_height: block.block_height.clone(),
+        block_timestamp: block.block_timestamp.clone(),
+        tx_hash: formatted_tx_hash.clone(),
+        event_index: event_index.clone() as i32,
+        contract_address: event.address.clone(),
+        initiator_address: initiator_address.clone(),
+        name: event._eventname.clone(),
+        params: event.params.clone(),
+      };
+
+      self.process_event(conn, &block, &tx_result, &chain_event)?;
+    }
+    Ok(())
+  }
+
+  /// poll chain events from database and persist events into database
+  //  queue events for retry if failed.
+  fn process_event(&self, conn: &PgConnection, block: &models::NewBlockSync, tx_result: &TxResult, event: &ChainEvent) -> PersistResult {
+    let event_type = Event::from_str(event.name.as_str()).unwrap();
+    let persist = match event_type {
+      Event::Minted => persist_mint_event,
+      Event::Burnt => persist_burn_event,
+      Event::Swapped => persist_swap_event,
+      Event::Claimed => persist_claim_event,
+    };
+    persist(conn, &block, &tx_result, &event)
   }
 }
 
@@ -244,54 +371,22 @@ impl Actor for EventFetchActor {
   }
 }
 
-/// Define handler for `Fetch` message
 impl Handler<Fetch> for EventFetchActor {
   type Result = ();
 
-  fn handle(&mut self, msg: Fetch, _ctx: &mut SyncContext<Self>) -> Self::Result {
-    let (contract_hash, event) = (msg.contract_hash.as_str(), msg.event.clone());
-    let mut execute = || -> FetchResult {
-      let result = self.get_and_parse(contract_hash, event, msg.page_number)?;
-      let conn = self.db_pool.get().expect("couldn't get db connection from pool");
-
-      if result.txs.len() == 0 {
-        info!("Done with {} events.", event);
-        db::insert_backfill_completion(models::NewBackfillCompletion { contract_address: contract_hash, event_name: event.to_string().as_str() }, &conn)?;
-        return Ok(NextFetch::poll(&msg));
+  fn handle(&mut self, msg: Fetch, _ctx: &mut SyncContext<Self>) -> () {
+    let job = msg.job.clone();
+    let result = match job {
+      FetchJob::QueryNewBlocksParams(params) => {
+        let prev_height = params.prev_height;
+        self.query_new_blocks(prev_height)
       }
-
-      let mut inserted_some_event = false;
-      for tx in result.txs {
-        for (i, ev) in tx.events.iter().enumerate() {
-          let persist = match event {
-            Event::Minted => persist_mint_event,
-            Event::Burnt => persist_burn_event,
-            Event::Swapped => persist_swap_event,
-            Event::Claimed => persist_claim_event,
-          };
-          match persist(&conn, &tx, &ev, &i.try_into().unwrap()) {
-            Err(diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _)) => {
-              // mark duplicate and continue processing other events in this fetch
-              debug!("Ignoring duplicate {} entry, {} {}", event, tx.hash, i)
-            },
-            Err(err) => return Err(FetchError::from(err)),
-            Ok(true) => inserted_some_event = true,
-            _ => ()
-          }
-        }
+      FetchJob::ProcessBlockParams(params) => {
+        let height = params.height;
+        self.process_block(height)
       }
-
-      if !inserted_some_event && db::backfill_completed(&conn, contract_hash, event.to_string().as_str())? {
-        info!("Fetched till last inserted {} event.", event);
-        return Ok(NextFetch::poll(&msg));
-      }
-
-      debug!("Going to next page of {}.", event);
-      return Ok(NextFetch::paginate(&msg));
     };
 
-    // handle retrying
-    let result = execute();
     match result {
       Ok(next_msg) => self.coordinator.do_send(next_msg),
       Err(e) => {
@@ -303,27 +398,34 @@ impl Handler<Fetch> for EventFetchActor {
   }
 }
 
-fn persist_mint_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
-  let name = event.name.as_str();
+fn persist_mint_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
+  let name = chain_event.name.as_str();
   if name != "Mint" {
     return Ok(false)
   }
 
-  let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-  let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-  let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
+  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let amount = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
 
-  let transfer_event = tx.events.iter().find(|&event| event.name.as_str() == "TransferFromSuccess").unwrap();
-  let token_amount = transfer_event.params.get("amount").unwrap().as_str().expect("Malformed response!");
-  let zil_amount = tx.value.as_str();
+  let tx_events = tx_result.receipt.events();
+  let transfer_event = tx_events.iter().find(|&event| event._eventname.as_str() == "TransferFromSuccess").unwrap();
+  let token_amount = transfer_event.params.pointer("/3/value").unwrap().as_str().expect("Malformed event log!");
+  let zil_amount = tx_result.amount.as_str();
+
+  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
+
+  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
+  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
 
   let add_liquidity = models::NewLiquidityChange {
-    transaction_hash: &tx.hash,
-    event_sequence: &event_sequence,
-    block_height: &tx.block_height,
-    block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-    initiator_address: address,
-    token_address: pool,
+    transaction_hash: &chain_event.tx_hash,
+    event_sequence: &chain_event.event_index,
+    block_height: &chain_event.block_height,
+    block_timestamp: &chain_event.block_timestamp,
+    initiator_address: &initiator_address_bech32,
+    token_address: &pool_address_bech32,
     change_amount: &BigDecimal::from_str(amount).unwrap(),
     token_amount: &BigDecimal::from_str(token_amount).unwrap(),
     zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
@@ -333,26 +435,36 @@ fn persist_mint_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   db::insert_liquidity_change(add_liquidity, &conn).map(|_| true)
 }
 
-fn persist_burn_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
-  let name = event.name.as_str();
+fn persist_burn_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
+  let name = chain_event.name.as_str();
   if name != "Burnt" {
     return Ok(false)
   }
-  let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-  let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-  let amount = event.params.get("amount").unwrap().as_str().expect("Malformed response!");
 
-  let transfer_event = tx.events.iter().find(|&event| event.name.as_str() == "TransferSuccess").unwrap();
-  let token_amount = transfer_event.params.get("amount").unwrap().as_str().expect("Malformed response!");
-  let zil_amount = tx.internal_transfers[0].get("value").unwrap().as_str().expect("Malformed response!");
+  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let amount = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+
+  let tx_events = tx_result.receipt.events();
+  let transfer_event = tx_events.iter().find(|&event| event._eventname.as_str() == "TransferSuccess").unwrap();
+  let token_amount = transfer_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let tx_transitions = tx_result.receipt.transitions();
+  let zil_transition = tx_transitions.iter().find(|&transition| transition.msg._tag.as_str() == "AddFunds").unwrap();
+  let zil_amount = zil_transition.msg._amount.as_str();
+
+  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
+
+  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
+  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
 
   let remove_liquidity = models::NewLiquidityChange {
-    transaction_hash: &tx.hash,
-    event_sequence: &event_sequence,
-    block_height: &tx.block_height,
-    block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-    initiator_address: address,
-    token_address: pool,
+    transaction_hash: &chain_event.tx_hash,
+    event_sequence: &chain_event.event_index,
+    block_height: &chain_event.block_height,
+    block_timestamp: &chain_event.block_timestamp,
+    initiator_address: &initiator_address_bech32,
+    token_address: &pool_address_bech32,
     change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
     token_amount: &BigDecimal::from_str(token_amount).unwrap(),
     zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
@@ -362,18 +474,24 @@ fn persist_burn_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   db::insert_liquidity_change(remove_liquidity, &conn).map(|_| true)
 }
 
-fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
-  let name = event.name.as_str();
+fn persist_swap_event(conn: &PgConnection, _block: &models::NewBlockSync, _tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
+  let name = chain_event.name.as_str();
   if name != "Swapped" {
     return Ok(false)
   }
 
-  let address = event.params.get("address").unwrap().as_str().expect("Malformed response!");
-  let pool = event.params.get("pool").unwrap().as_str().expect("Malformed response!");
-  let input_amount = event.params.pointer("/input/0/params/0").unwrap().as_str().expect("Malformed response!");
-  let output_amount = event.params.pointer("/output/0/params/0").unwrap().as_str().expect("Malformed response!");
-  let input_name = event.params.pointer("/input/1/name").unwrap().as_str().expect("Malformed response!");
-  let input_denom = input_name.split(".").last().expect("Malformed response!");
+  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let input_amount = chain_event.params.pointer("/2/value/arguments/1").unwrap().as_str().expect("Malformed event log!");
+  let output_amount = chain_event.params.pointer("/3/value/arguments/1").unwrap().as_str().expect("Malformed event log!");
+  let input_name = chain_event.params.pointer("/2/value/arguments/0/constructor").unwrap().as_str().expect("Malformed event log!");
+  let input_denom = input_name.split(".").last().expect("Malformed event log!");
+
+  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
+
+  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
+  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
 
   let token_amount;
   let zil_amount;
@@ -395,12 +513,12 @@ fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   }
 
   let new_swap = models::NewSwap {
-    transaction_hash: &tx.hash,
-    event_sequence: &event_sequence,
-    block_height: &tx.block_height,
-    block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-    initiator_address: address,
-    token_address: pool,
+    transaction_hash: &chain_event.tx_hash,
+    event_sequence: &chain_event.event_index,
+    block_height: &chain_event.block_height,
+    block_timestamp: &chain_event.block_timestamp,
+    initiator_address: &initiator_address_bech32,
+    token_address: &pool_address_bech32,
     token_amount: &token_amount,
     zil_amount: &zil_amount,
     is_sending_zil: &is_sending_zil,
@@ -410,27 +528,27 @@ fn persist_swap_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &
   db::insert_swap(new_swap, &conn).map(|_| true)
 }
 
-fn persist_claim_event(conn: &PgConnection, tx: &responses::ViewBlockTx, event: &responses::ViewBlockEvent, event_sequence: &i32) -> PersistResult {
-  let name = event.name.as_str();
+fn persist_claim_event(conn: &PgConnection, _block: &models::NewBlockSync, _tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
+  let name = chain_event.name.as_str();
   if name != "Claimed" {
     return Ok(false)
   }
 
-  let epoch_number = event.params.get("epoch_number").unwrap().as_str().expect("Malformed response!");
-  let address = event.params.pointer("/data/0/params/0").unwrap().as_str().expect("Malformed response!");
-  let amount = event.params.pointer("/data/0/params/1").unwrap().as_str().expect("Malformed response!");
-  let (_hrp, data) = decode(&event.address).expect("Could not decode bech32 address string!");
-  let bytes = Vec::<u8>::from_base32(&data).unwrap();
-  let distributor_address = format!("0x{}", encode(&bytes));
+  let epoch_number = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let recipient_address = chain_event.params.pointer("/1/value/arguments/0").unwrap().as_str().expect("Malformed event log!");
+  let amount = chain_event.params.pointer("/1/value/arguments/1").unwrap().as_str().expect("Malformed event log!");
+
+  let address_bytes = hex::decode(&recipient_address[2..]).unwrap().to_base32();
+  let initiator_address = encode("zil", &address_bytes).expect("invalid sender address");
 
   let new_claim = models::NewClaim {
-    transaction_hash: &tx.hash,
-    event_sequence: &event_sequence,
-    block_height: &tx.block_height,
-    block_timestamp: &chrono::NaiveDateTime::from_timestamp(tx.timestamp / 1000, (tx.timestamp % 1000).try_into().unwrap()),
-    initiator_address: address,
-    distributor_address: &distributor_address,
-    epoch_number: &epoch_number.parse::<i32>().expect("Malformed response"),
+    transaction_hash: &chain_event.tx_hash,
+    event_sequence: &chain_event.event_index,
+    block_height: &chain_event.block_height,
+    block_timestamp: &chain_event.block_timestamp,
+    initiator_address: &initiator_address,
+    distributor_address: &chain_event.contract_address,
+    epoch_number: &epoch_number.parse::<i32>().expect("Malformed event log"),
     amount: &BigDecimal::from_str(amount).unwrap(),
   };
 

@@ -36,6 +36,7 @@ mod responses;
 mod pagination;
 mod distribution;
 mod utils;
+mod rpc;
 
 use crate::constants::{Network};
 use crate::worker::{WorkerConfig};
@@ -316,6 +317,19 @@ async fn generate_epoch(
       *current += dt
     }
 
+    // override liquidity rewards to contract
+    let hive_address = "zil10mmqxduremmhyz2j89qptk3x8f2srw8rqukf8y";
+    let ht = match accumulator.get(hive_address) {
+      Some (amount) => amount.clone(),
+      None => BigDecimal::default(),
+    };
+    if ht.is_positive() {
+      accumulator.remove(hive_address);
+
+      let current = accumulator.entry(distr.developer_address().to_owned()).or_insert(BigDecimal::default());
+      *current += ht
+    }
+
     let total_distributed = accumulator.values().fold(BigDecimal::default(), |acc, x| acc + x);
     if total_distributed > epoch_info.tokens_for_epoch() {
       panic!("Total distributed tokens > target tokens for epoch: {} > {}", total_distributed, epoch_info.tokens_for_epoch())
@@ -552,17 +566,20 @@ async fn main() -> std::io::Result<()> {
   let config_file_path = std::env::var("CONFIG_FILE").unwrap_or(String::from("config/config.yml"));
   let f = std::fs::File::open(config_file_path)?;
   let data: serde_yaml::Value = serde_yaml::from_reader(f).expect("Could not read config.yml");
+  let config = data[network.to_string()].clone();
   let distr_configs = serde_yaml::from_value::<DistributionConfigs>(
-    data[network.to_string()]["distributions"].clone()
+    config["distributions"].clone()
   ).expect("Failed to parse distributions in config.yml");
   if let Err(e) = distr_configs.validate() {
     panic!("Error in config.yml: {:#?}", e);
   }
 
   // worker config
-  let contract_hash = serde_yaml::from_value::<String>(data[network.to_string()]["zilswap_address_hex"].clone()).expect("invalid zilswap_address_hex");
+  let contract_hash = serde_yaml::from_value::<String>(config["zilswap_address_hex"].clone()).expect("invalid zilswap_address_hex");
   let distributor_contract_hashes = distr_configs.iter().map(|d| d.distributor_address()).collect();
-  let worker_config = WorkerConfig::new(network, contract_hash.as_str(), distributor_contract_hashes);
+  let min_sync_height: u32 = serde_yaml::from_value(config["zilswap_min_sync_at"].clone()).expect("invalid zilswap_min_sync_at");
+  let rpc_url = std::env::var("RPC_URL").unwrap_or("https://api.zilliqa.com".to_string());
+  let worker_config = WorkerConfig::new(network, contract_hash.as_str(), distributor_contract_hashes, min_sync_height, rpc_url);
 
   // get number of threads to run
   let threads_str = std::env::var("SERVER_THREADS").unwrap_or(String::from(""));

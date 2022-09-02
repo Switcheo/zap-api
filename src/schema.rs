@@ -7,6 +7,15 @@ table! {
 }
 
 table! {
+    block_syncs (id) {
+        id -> Uuid,
+        block_height -> Int4,
+        block_timestamp -> Timestamp,
+        num_txs -> Int4,
+    }
+}
+
+table! {
     claims (id) {
         id -> Uuid,
         transaction_hash -> Varchar,
@@ -89,6 +98,7 @@ table! {
 
 allow_tables_to_appear_in_same_query!(
     backfill_completions,
+    block_syncs,
     claims,
     distributions,
     liquidity_changes,

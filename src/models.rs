@@ -4,7 +4,7 @@ use diesel::sql_types::{Text, Numeric};
 use serde::{Serialize, Deserialize};
 use uuid::Uuid;
 
-use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, backfill_completions};
+use crate::schema::{swaps, liquidity_changes, distributions, claims, pool_txs, block_syncs};
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
 pub struct Swap {
@@ -175,16 +175,18 @@ pub struct NewClaim<'a> {
   pub amount: &'a BigDecimal,
 }
 
-#[derive(Debug, Identifiable, Queryable, Serialize)]
-pub struct BackfillCompletion {
+#[derive(Debug, Clone, Identifiable, Queryable, Serialize)]
+pub struct BlockSync {
   pub id: Uuid,
-  pub contract_address: String,
-  pub event_name: String,
+  pub block_height: i32,
+  pub block_timestamp: NaiveDateTime,
+  pub num_txs: i32,
 }
 
 #[derive(Debug, Clone, Insertable)]
-#[table_name="backfill_completions"]
-pub struct NewBackfillCompletion<'a> {
-  pub contract_address: &'a str,
-  pub event_name: &'a str,
+#[table_name="block_syncs"]
+pub struct NewBlockSync<'a> {
+  pub block_height: &'a i32,
+  pub block_timestamp: &'a NaiveDateTime,
+  pub num_txs: &'a i32,
 }

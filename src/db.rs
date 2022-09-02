@@ -1,7 +1,7 @@
 use diesel::debug_query;
 use diesel::pg::Pg;
 use diesel::prelude::*;
-use diesel::dsl::{sql, exists};
+use diesel::dsl::{sql, exists, max};
 use diesel::sql_types::{Text, Numeric, Timestamp};
 use chrono::{NaiveDateTime, Utc};
 use redis::Commands;
@@ -568,6 +568,7 @@ pub fn insert_swap(
 
   diesel::insert_into(swaps)
     .values(&new_swap)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
@@ -582,6 +583,7 @@ pub fn insert_liquidity_change(
 
   diesel::insert_into(liquidity_changes)
     .values(&new_liquidity_change)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
@@ -610,32 +612,26 @@ pub fn insert_claim(
 
   diesel::insert_into(claims)
     .values(&new_claim)
+    .on_conflict_do_nothing()
     .execute(conn)?;
 
   Ok(())
 }
 
-/// Inserts a backfill completion into the db ignoring duplicates.
-pub fn insert_backfill_completion(
-  new_backfill_completion: models::NewBackfillCompletion,
+pub fn insert_block_sync(
   conn: &PgConnection,
+  new_block_sync: models::NewBlockSync,
 ) -> Result<(), diesel::result::Error> {
-  use crate::schema::backfill_completions::dsl::*;
+  use crate::schema::block_syncs::dsl::*;
 
-  let res = diesel::insert_into(backfill_completions)
-    .values(&new_backfill_completion)
+  let res = diesel::insert_into(block_syncs)
+    .values(&new_block_sync)
+    .on_conflict_do_nothing()
     .execute(conn);
-
-  if let Err(e) = res {
-    match e {
-      diesel::result::Error::DatabaseError(diesel::result::DatabaseErrorKind::UniqueViolation, _) =>
-        debug!("Ignoring duplicate backfill_completion entry"),
-      _ => return Err(e)
-    }
-  }
 
   Ok(())
 }
+
 
 pub fn swap_exists(
   conn: &PgConnection,
@@ -667,13 +663,14 @@ pub fn epoch_exists(
     .get_result(conn)?)
 }
 
-pub fn backfill_completed(
+pub fn last_sync_height(
   conn: &PgConnection,
-  address: &str,
-  event: &str,
-) -> Result<bool, diesel::result::Error> {
-  use crate::schema::backfill_completions::dsl::*;
-
-  Ok(diesel::select(exists(backfill_completions.filter(contract_address.eq(address)).filter(event_name.eq(event))))
-    .get_result(conn)?)
+) -> Result<i32, diesel::result::Error> {
+  use crate::schema::block_syncs::dsl::*;
+  let result = block_syncs.select(max(block_height)).first(conn)?;
+  let last_height = match result {
+    Some(height) => height,
+    None => 0,
+  };
+  Ok(last_height) 
 }
