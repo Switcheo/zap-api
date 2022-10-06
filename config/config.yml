@@ -375,7 +375,7 @@ mainnet:
     - name: "PELE Rewards"
       reward_token_symbol: PELE
       reward_token_address_hex: "0x55d66385a975a25cd7c9bb7cb8b1b11a56436789"
-      distributor_name: PELE Network
+      distributor_name: Pelenia
       distributor_address_hex: "0xdd80d40486932aff9aac3c9bb7c11bc9d249a6da"
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
@@ -383,9 +383,9 @@ mainnet:
         tokens_per_epoch: "70000000000" # 700k PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1648022400 # Wed Mar 23 2022 08:00:00 GMT+0000
-        total_number_of_epochs: 27
-        initial_epoch_number: 12
+        distribution_start_time: 1665117724 # Thu Oct 6 2022 21:42:00 GMT+0000
+        total_number_of_epochs: 13
+        initial_epoch_number: 0
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:                         
