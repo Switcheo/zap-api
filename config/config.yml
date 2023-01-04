@@ -379,13 +379,16 @@ mainnet:
       distributor_address_hex: "0xdd80d40486932aff9aac3c9bb7c11bc9d249a6da"
       developer_address: zil158f0cpeew2grtaukckdkz887z3c50aexggh8p4
       emission_info:
+        # tokens_per_epoch: "70000000000" # 700k PELE (2022)
+        # total_number_of_epochs: 40 (2022)
+
         epoch_period: 604800 # 1 week
-        tokens_per_epoch: "75000000000" # 7.5k PELE
+        tokens_per_epoch: "75000000000" # 750k PELE
         tokens_for_retroactive_distribution: "0"
         retroactive_distribution_cutoff_time: 0
-        distribution_start_time: 1672771581 # Tue, 03 Jan 2023 18:46:21 GMT
-        total_number_of_epochs: 51
-        initial_epoch_number: 52
+        distribution_start_time: 1648022400 # Wed Mar 23 2022 08:00:00 GMT+0000
+        total_number_of_epochs: 92
+        initial_epoch_number: 12
         developer_token_ratio_bps: 0
         trader_token_ratio_bps: 0
       incentivized_pools:                         
