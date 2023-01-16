@@ -23,6 +23,7 @@ use crate::constants::{Event, Network};
 pub struct WorkerConfig {
   network: Network,
   contract_hash: String,
+  pool_contract_hashes: Vec<String>,
   distributor_contract_hashes: Vec<String>,
   min_sync_height: u32,
   rpc_url: String,
@@ -32,6 +33,7 @@ impl WorkerConfig {
   pub fn new(
     network: Network,
     contract_hash: &str,
+    pool_contract_hashes: Vec<&str>,
     distributor_contract_hashes: Vec<&str>,
     min_sync_height: u32,
     rpc_url: String,
@@ -39,6 +41,7 @@ impl WorkerConfig {
     Self {
       network: network.clone(),
       contract_hash: contract_hash.to_owned(),
+      pool_contract_hashes: pool_contract_hashes.into_iter().map(|h| h.to_owned()).collect(),
       distributor_contract_hashes: distributor_contract_hashes.into_iter().map(|h| h.to_owned()).collect(),
       min_sync_height,
       rpc_url,
@@ -324,7 +327,7 @@ impl EventFetchActor {
       };
       match event_type {
         Event::Minted | Event::Burnt | Event::Swapped => {
-          if event.address != self.config.contract_hash { continue }
+          if !self.config.pool_contract_hashes.contains(&event.address) { continue }
         },
         Event::Claimed => {
           if !self.config.distributor_contract_hashes.contains(&event.address) { continue }
@@ -344,6 +347,8 @@ impl EventFetchActor {
         params: event.params.clone(),
       };
 
+      debug!("chainEvent: {:?}", chain_event);
+
       self.process_event(conn, &block, &tx_result, &chain_event)?;
     }
     Ok(())
@@ -353,6 +358,7 @@ impl EventFetchActor {
   //  queue events for retry if failed.
   fn process_event(&self, conn: &PgConnection, block: &models::NewBlockSync, tx_result: &TxResult, event: &ChainEvent) -> PersistResult {
     let event_type = Event::from_str(event.name.as_str()).unwrap();
+    println!("{}", event_type);
     let persist = match event_type {
       Event::Minted => persist_mint_event,
       Event::Burnt => persist_burn_event,
@@ -400,24 +406,21 @@ impl Handler<Fetch> for EventFetchActor {
 
 fn persist_mint_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
   let name = chain_event.name.as_str();
-  if name != "Mint" {
+  if name != "PoolMinted" {
     return Ok(false)
   }
 
-  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
-  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
-  let amount = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let minter_address = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let router_address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_0 = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_1 = chain_event.params.pointer("/3/value").unwrap().as_str().expect("Malformed event log!");
+  let liquidity = chain_event.params.pointer("/4/value").unwrap().as_str().expect("Malformed event log!");
 
-  let tx_events = tx_result.receipt.events();
-  let transfer_event = tx_events.iter().find(|&event| event._eventname.as_str() == "TransferFromSuccess").unwrap();
-  let token_amount = transfer_event.params.pointer("/3/value").unwrap().as_str().expect("Malformed event log!");
-  let zil_amount = tx_result.amount.as_str();
+  let minter_address_bytes = hex::decode(&minter_address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &minter_address_bytes).expect("invalid sender address");
 
-  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
-  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
-
-  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
-  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
+  let router_address_bytes = hex::decode(&router_address[2..]).unwrap().to_base32();
+  let router_address_bech32 = encode("zil", &router_address_bytes).expect("invalid sender address");
 
   let add_liquidity = models::NewLiquidityChange {
     transaction_hash: &chain_event.tx_hash,
@@ -425,10 +428,11 @@ fn persist_mint_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_res
     block_height: &chain_event.block_height,
     block_timestamp: &chain_event.block_timestamp,
     initiator_address: &initiator_address_bech32,
-    token_address: &pool_address_bech32,
-    change_amount: &BigDecimal::from_str(amount).unwrap(),
-    token_amount: &BigDecimal::from_str(token_amount).unwrap(),
-    zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
+    router_address: &router_address_bech32,
+    pool_address: &chain_event.contract_address,
+    amount_0: &BigDecimal::from_str(amount_0).unwrap(),
+    amount_1: &BigDecimal::from_str(amount_1).unwrap(),
+    liquidity: &BigDecimal::from_str(liquidity).unwrap(),
   };
 
   debug!("Inserting: {:?}", add_liquidity);
@@ -437,26 +441,21 @@ fn persist_mint_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_res
 
 fn persist_burn_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
   let name = chain_event.name.as_str();
-  if name != "Burnt" {
+  if name != "PoolBurnt" {
     return Ok(false)
   }
 
-  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
-  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
-  let amount = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let burner_address = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let router_address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_0 = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_1 = chain_event.params.pointer("/3/value").unwrap().as_str().expect("Malformed event log!");
+  let liquidity = chain_event.params.pointer("/4/value").unwrap().as_str().expect("Malformed event log!");
 
-  let tx_events = tx_result.receipt.events();
-  let transfer_event = tx_events.iter().find(|&event| event._eventname.as_str() == "TransferSuccess").unwrap();
-  let token_amount = transfer_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
-  let tx_transitions = tx_result.receipt.transitions();
-  let zil_transition = tx_transitions.iter().find(|&transition| transition.msg._tag.as_str() == "AddFunds").unwrap();
-  let zil_amount = zil_transition.msg._amount.as_str();
+  let burner_address_bytes = hex::decode(&burner_address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &burner_address_bytes).expect("invalid sender address");
 
-  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
-  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
-
-  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
-  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
+  let router_address_bytes = hex::decode(&router_address[2..]).unwrap().to_base32();
+  let router_address_bech32 = encode("zil", &router_address_bytes).expect("invalid sender address");
 
   let remove_liquidity = models::NewLiquidityChange {
     transaction_hash: &chain_event.tx_hash,
@@ -464,10 +463,11 @@ fn persist_burn_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_res
     block_height: &chain_event.block_height,
     block_timestamp: &chain_event.block_timestamp,
     initiator_address: &initiator_address_bech32,
-    token_address: &pool_address_bech32,
-    change_amount: &BigDecimal::from_str(amount).unwrap().neg(),
-    token_amount: &BigDecimal::from_str(token_amount).unwrap(),
-    zil_amount: &BigDecimal::from_str(zil_amount).unwrap(),
+    pool_address: &chain_event.contract_address,
+    router_address: &router_address_bech32,
+    amount_0: &BigDecimal::from_str(amount_0).unwrap().neg(),
+    amount_1: &BigDecimal::from_str(amount_1).unwrap().neg(),
+    liquidity: &BigDecimal::from_str(liquidity).unwrap().neg(),
   };
 
   debug!("Inserting: {:?}", remove_liquidity);
@@ -476,41 +476,27 @@ fn persist_burn_event(conn: &PgConnection, _block: &models::NewBlockSync, tx_res
 
 fn persist_swap_event(conn: &PgConnection, _block: &models::NewBlockSync, _tx_result: &TxResult, chain_event: &ChainEvent) -> PersistResult {
   let name = chain_event.name.as_str();
-  if name != "Swapped" {
+  if name != "PoolSwapped" {
     return Ok(false)
   }
 
-  let address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
-  let pool = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
-  let input_amount = chain_event.params.pointer("/2/value/arguments/1").unwrap().as_str().expect("Malformed event log!");
-  let output_amount = chain_event.params.pointer("/3/value/arguments/1").unwrap().as_str().expect("Malformed event log!");
-  let input_name = chain_event.params.pointer("/2/value/arguments/0/constructor").unwrap().as_str().expect("Malformed event log!");
-  let input_denom = input_name.split(".").last().expect("Malformed event log!");
+  let initiator_address = chain_event.params.pointer("/0/value").unwrap().as_str().expect("Malformed event log!");
+  let router_address = chain_event.params.pointer("/1/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_0_in = chain_event.params.pointer("/2/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_1_in = chain_event.params.pointer("/3/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_0_out = chain_event.params.pointer("/4/value").unwrap().as_str().expect("Malformed event log!");
+  let amount_1_out = chain_event.params.pointer("/5/value").unwrap().as_str().expect("Malformed event log!");
 
-  let address_bytes = hex::decode(&address[2..]).unwrap().to_base32();
-  let initiator_address_bech32 = encode("zil", &address_bytes).expect("invalid sender address");
+  let to_address = chain_event.params.pointer("/6/value").unwrap().as_str().expect("Malformed event log!");
 
-  let pool_address_bytes = hex::decode(&pool[2..]).unwrap().to_base32();
-  let pool_address_bech32 = encode("zil", &pool_address_bytes).expect("invalid pool address");
+  let initiator_address_bytes = hex::decode(&initiator_address[2..]).unwrap().to_base32();
+  let initiator_address_bech32 = encode("zil", &initiator_address_bytes).expect("invalid sender address");
 
-  let token_amount;
-  let zil_amount;
-  let is_sending_zil;
-  match input_denom {
-    "Token" => {
-      token_amount = BigDecimal::from_str(input_amount).unwrap();
-      zil_amount = BigDecimal::from_str(output_amount).unwrap();
-      is_sending_zil = false;
-    },
-    "Zil" => {
-      zil_amount = BigDecimal::from_str(input_amount).unwrap();
-      token_amount = BigDecimal::from_str(output_amount).unwrap();
-      is_sending_zil = true;
-    }
-    _ => {
-      panic!("Malformed input denom!");
-    }
-  }
+  let router_address_bytes = hex::decode(&router_address[2..]).unwrap().to_base32();
+  let router_address_bech32 = encode("zil", &router_address_bytes).expect("invalid pool address");
+
+  let to_address_bytes = hex::decode(&to_address[2..]).unwrap().to_base32();
+  let to_address_bech32 = encode("zil", &to_address_bytes).expect("invalid recipient address");
 
   let new_swap = models::NewSwap {
     transaction_hash: &chain_event.tx_hash,
@@ -518,10 +504,13 @@ fn persist_swap_event(conn: &PgConnection, _block: &models::NewBlockSync, _tx_re
     block_height: &chain_event.block_height,
     block_timestamp: &chain_event.block_timestamp,
     initiator_address: &initiator_address_bech32,
-    token_address: &pool_address_bech32,
-    token_amount: &token_amount,
-    zil_amount: &zil_amount,
-    is_sending_zil: &is_sending_zil,
+    pool_address: &chain_event.contract_address,
+    router_address: &router_address_bech32,
+    to_address: &to_address_bech32,
+    amount_0_in: &BigDecimal::from_str(amount_0_in).unwrap(),
+    amount_1_in: &BigDecimal::from_str(amount_1_in).unwrap(),
+    amount_0_out: &BigDecimal::from_str(amount_0_out).unwrap(),
+    amount_1_out: &BigDecimal::from_str(amount_1_out).unwrap(),
   };
 
   debug!("Inserting: {:?}", new_swap);

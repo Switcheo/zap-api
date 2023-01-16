@@ -11,9 +11,9 @@ pub enum Event {
 impl Event {
   pub fn from_str(input: &str) -> Option<Event> {
     match input {
-      "Mint" => Some(Event::Minted),
-      "Burnt" => Some(Event::Burnt),
-      "Swapped" => Some(Event::Swapped),
+      "PoolMinted" => Some(Event::Minted),
+      "PoolBurnt" => Some(Event::Burnt),
+      "PoolSwapped" => Some(Event::Swapped),
       "Claimed" => Some(Event::Claimed),
       _ => None,
     }
@@ -23,9 +23,9 @@ impl Event {
 impl fmt::Display for Event {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     match *self {
-      Event::Minted => write!(f, "Mint"),
-      Event::Burnt => write!(f, "Burnt"),
-      Event::Swapped => write!(f, "Swapped"),
+      Event::Minted => write!(f, "PoolMinted"),
+      Event::Burnt => write!(f, "PoolBurnt"),
+      Event::Swapped => write!(f, "PoolSwapped"),
       Event::Claimed => write!(f, "Claimed"),
     }
   }
@@ -35,6 +35,7 @@ impl fmt::Display for Event {
 pub enum Network {
   MainNet,
   TestNet,
+  LocalHost
 }
 
 impl fmt::Display for Network {
@@ -42,6 +43,7 @@ impl fmt::Display for Network {
     match *self {
       Network::MainNet => write!(f, "mainnet"),
       Network::TestNet => write!(f, "testnet"),
+      Network::LocalHost => write!(f, "localhost"),
     }
   }
 }

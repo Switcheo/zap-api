@@ -260,7 +260,7 @@ async fn generate_epoch(
     let pt = epoch_info.tokens_for_liquidity_providers();
     let distribution: HashMap<String, PoolDistribution> =
       if epoch_info.is_initial() {
-        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+        let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.liquidity).sum();
         db::get_pools(&conn)?.into_iter().map(|pool| {
           (pool,
             PoolDistribution{ // share distribution fully
@@ -277,7 +277,7 @@ async fn generate_epoch(
             Some((i.pool,
               PoolDistribution{ // each pool has a weighted allocation
                 tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
-                weighted_liquidity: i.amount,
+                weighted_liquidity: i.liquidity,
               }
             ))
           } else {
@@ -292,7 +292,7 @@ async fn generate_epoch(
     let user_liquidity = db::get_time_weighted_liquidity_by_address(&conn, start, end)?;
     for l in user_liquidity.into_iter() {
       if let Some(pool) = distribution.get(&l.pool) {
-        let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+        let share = utils::round_down(l.liquidity * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
         let current = accumulator.entry(l.address).or_insert(BigDecimal::default());
         *current += share
       }
@@ -301,10 +301,10 @@ async fn generate_epoch(
     // if initial epoch, add distr for swap volumes
     let tt = epoch_info.tokens_for_traders();
     if tt.is_positive() {
-      let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?.into_iter().map(|v| v.in_zil_amount + v.out_zil_amount).sum();
+      let total_volume: BigDecimal = db::get_volume(&conn, None, start, end)?.into_iter().map(|v| v.total_amount_0_in + v.total_amount_0_out).sum();
       let user_volume = db::get_volume_by_address(&conn, start, end)?;
       for v in user_volume.into_iter() {
-        let share = utils::round_down(tt.clone() * v.amount.clone() / total_volume.clone(), 0);
+        let share = utils::round_down(tt.clone() * v.amount_0.clone() / total_volume.clone(), 0);
         let current = accumulator.entry(v.address).or_insert(BigDecimal::default());
         *current += share
       }
@@ -413,7 +413,7 @@ async fn get_distribution_amounts(
       let pt = epoch_info.tokens_for_liquidity_providers();
       let distribution: HashMap<String, PoolDistribution> =
         if epoch_info.is_initial() {
-          let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.amount).sum();
+          let total_liquidity: BigDecimal = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, None)?.into_iter().map(|i| i.liquidity).sum();
           db::get_pools(&conn)?.into_iter().map(|pool| {
             (pool,
               PoolDistribution{ // share distribution fully
@@ -430,7 +430,7 @@ async fn get_distribution_amounts(
               Some((i.pool,
                 PoolDistribution{ // each pool has a weighted allocation
                   tokens: utils::round_down(pt.clone() * BigDecimal::from(*weight) / BigDecimal::from(total_weight), 0),
-                  weighted_liquidity: i.amount,
+                  weighted_liquidity: i.liquidity,
                 }
               ))
             } else {
@@ -443,7 +443,7 @@ async fn get_distribution_amounts(
       let user_liquidity = db::get_time_weighted_liquidity(&conn, &mut rconn, start, end, Some(&user_address))?;
       for l in user_liquidity.into_iter() {
         if let Some(pool) = distribution.get(&l.pool) {
-          let share = utils::round_down(l.amount * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
+          let share = utils::round_down(l.liquidity * pool.tokens.clone() / pool.weighted_liquidity.clone(), 0);
           let current = accumulator.entry(l.pool).or_insert(BigDecimal::default());
           *current += share
         }
@@ -559,6 +559,7 @@ async fn main() -> std::io::Result<()> {
   let network = match network_str.as_str() {
     "testnet" => Network::TestNet,
     "mainnet" => Network::MainNet,
+    "localhost" => Network::LocalHost,
     _ => panic!("Invalid network string")
   };
 
@@ -567,6 +568,9 @@ async fn main() -> std::io::Result<()> {
   let f = std::fs::File::open(config_file_path)?;
   let data: serde_yaml::Value = serde_yaml::from_reader(f).expect("Could not read config.yml");
   let config = data[network.to_string()].clone();
+  let pool_configs = serde_yaml::from_value::<Vec<std::string::String>>(
+    config["zilswap_pools"].clone()
+  ).expect("failed to parse zilswap_pools in config.yml");
   let distr_configs = serde_yaml::from_value::<DistributionConfigs>(
     config["distributions"].clone()
   ).expect("Failed to parse distributions in config.yml");
@@ -576,10 +580,11 @@ async fn main() -> std::io::Result<()> {
 
   // worker config
   let contract_hash = serde_yaml::from_value::<String>(config["zilswap_address_hex"].clone()).expect("invalid zilswap_address_hex");
+  let pool_contract_hashes = pool_configs.iter().map(|address| address.as_str()).collect();
   let distributor_contract_hashes = distr_configs.iter().map(|d| d.distributor_address()).collect();
   let min_sync_height: u32 = serde_yaml::from_value(config["zilswap_min_sync_at"].clone()).expect("invalid zilswap_min_sync_at");
-  let rpc_url = std::env::var("RPC_URL").unwrap_or("https://api.zilliqa.com".to_string());
-  let worker_config = WorkerConfig::new(network, contract_hash.as_str(), distributor_contract_hashes, min_sync_height, rpc_url);
+  let rpc_url = std::env::var("RPC_URL").unwrap_or("https://dev-api.zilliqa.com".to_string());
+  let worker_config = WorkerConfig::new(network, contract_hash.as_str(), pool_contract_hashes, distributor_contract_hashes, min_sync_height, rpc_url);
 
   // get number of threads to run
   let threads_str = std::env::var("SERVER_THREADS").unwrap_or(String::from(""));

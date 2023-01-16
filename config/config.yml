@@ -409,8 +409,9 @@ mainnet:
       incentivized_pools:                         
         zil1hzt4wchy6yu9pufk07gzptsj8m3spztuqmeucs: 1 # EVZ
 testnet:
-  zilswap_address_hex: "0x1a62dd9c84b0c8948cb51fc664ba143e7a34985c"
-  zilswap_min_sync_at: 4528300
+  zilswap_address_hex: "0xf857b30ff76841e2450bf67d986ea8264c049726"
+  zilswap_pools: ["0xad323dbbf8945c2f2e4b846f2860951cdb0fa846"]
+  zilswap_min_sync_at: 5171700
   distributions:
     - name: "ZWAP Rewards Legacy"
       reward_token_symbol: ZWAP

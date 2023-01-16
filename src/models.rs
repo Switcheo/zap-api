@@ -14,10 +14,13 @@ pub struct Swap {
   pub block_height: i32,
   pub block_timestamp: NaiveDateTime,
   pub initiator_address: String,
-  pub token_address: String,
-  pub token_amount: BigDecimal,
-  pub zil_amount: BigDecimal,
-  pub is_sending_zil: bool,
+  pub pool_address: String,
+  pub router_address: String,
+  pub to_address: String,
+  pub amount_0_in: BigDecimal,
+  pub amount_1_in: BigDecimal,
+  pub amount_0_out: BigDecimal,
+  pub amount_1_out: BigDecimal,
 }
 
 #[derive(Debug, Insertable)]
@@ -28,10 +31,13 @@ pub struct NewSwap<'a> {
   pub block_height: &'a i32,
   pub block_timestamp: &'a NaiveDateTime,
   pub initiator_address: &'a str,
-  pub token_address: &'a str,
-  pub token_amount: &'a BigDecimal,
-  pub zil_amount: &'a BigDecimal,
-  pub is_sending_zil: &'a bool,
+  pub pool_address: &'a str,
+  pub router_address: &'a str,
+  pub to_address: &'a str,
+  pub amount_0_in: &'a BigDecimal,
+  pub amount_1_in: &'a BigDecimal,
+  pub amount_0_out: &'a BigDecimal,
+  pub amount_1_out: &'a BigDecimal,
 }
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
@@ -42,10 +48,11 @@ pub struct LiquidityChange {
   pub block_height: i32,
   pub block_timestamp: NaiveDateTime,
   pub initiator_address: String,
-  pub token_address: String,
-  pub change_amount: BigDecimal,
-  pub token_amount: BigDecimal,
-  pub zil_amount: BigDecimal,
+  pub pool_address: String,
+  pub router_address: String,
+  pub amount_0: BigDecimal,
+  pub amount_1: BigDecimal,
+  pub liquidity: BigDecimal,
 }
 
 #[derive(Debug, Insertable)]
@@ -56,10 +63,11 @@ pub struct NewLiquidityChange<'a> {
   pub block_height: &'a i32,
   pub block_timestamp: &'a NaiveDateTime,
   pub initiator_address: &'a str,
-  pub token_address: &'a str,
-  pub change_amount: &'a BigDecimal,
-  pub token_amount: &'a BigDecimal,
-  pub zil_amount: &'a BigDecimal,
+  pub pool_address: &'a str,
+  pub router_address: &'a str,
+  pub amount_0: &'a BigDecimal,
+  pub amount_1: &'a BigDecimal,
+  pub liquidity: &'a BigDecimal,
 }
 
 #[derive(Debug, Queryable, QueryableByName, Serialize, Deserialize, PartialEq)]
@@ -67,7 +75,11 @@ pub struct Liquidity {
   #[sql_type="Text"]
   pub pool: String,
   #[sql_type="Numeric"]
-  pub amount: BigDecimal,
+  pub amount_0: BigDecimal,
+  #[sql_type="Numeric"]
+  pub amount_1: BigDecimal,
+  #[sql_type="Numeric"]
+  pub liquidity: BigDecimal,
 }
 
 #[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
@@ -77,10 +89,20 @@ pub struct LiquidityFromProvider {
   #[sql_type="Text"]
   pub address: String,
   #[sql_type="Numeric"]
-  pub amount: BigDecimal,
+  pub liquidity: BigDecimal,
 }
 
-pub type VolumeForUser = LiquidityFromProvider;
+#[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
+pub struct VolumeForUser {
+  #[sql_type="Text"]
+  pub pool: String,
+  #[sql_type="Text"]
+  pub address: String,
+  #[sql_type="Numeric"]
+  pub amount_0: BigDecimal,
+  #[sql_type="Numeric"]
+  pub amount_1: BigDecimal,
+}
 
 #[derive(Debug, Queryable, QueryableByName, Serialize, PartialEq)]
 pub struct Volume {
@@ -89,17 +111,18 @@ pub struct Volume {
 
   // in/out wrt the pool
 
-  // user swap zil for token
   #[sql_type="Numeric"]
-  pub in_zil_amount: BigDecimal,
+  pub total_amount_0_in: BigDecimal,
   #[sql_type="Numeric"]
-  pub out_token_amount: BigDecimal,
+  pub total_amount_1_in: BigDecimal,
 
-  // user swap token for zil
   #[sql_type="Numeric"]
-  pub out_zil_amount: BigDecimal,
+  pub total_amount_0_out: BigDecimal,
   #[sql_type="Numeric"]
-  pub in_token_amount: BigDecimal,
+  pub total_amount_1_out: BigDecimal,
+
+  // #[sql_type="Numeric"]
+  // pub liquidity: BigDecimal,
 }
 
 #[derive(Debug, Identifiable, Queryable, Serialize)]
@@ -109,21 +132,20 @@ pub struct PoolTx {
   pub block_height: i32,
   pub block_timestamp: NaiveDateTime,
   pub initiator_address: String,
-  pub token_address: String,
+  pub pool_address: String,
+  pub router_address: String,
+  pub to_address: Option<String>,
 
-  pub token_amount: Option<BigDecimal>,
-  pub zil_amount: Option<BigDecimal>,
+  pub amount_0: Option<BigDecimal>,
+  pub amount_1: Option<BigDecimal>,
+  pub liquidity: Option<BigDecimal>,
 
   pub tx_type: String,
 
-  pub swap0_is_sending_zil: Option<bool>,
-
-  pub swap1_token_address: Option<String>,
-  pub swap1_token_amount: Option<BigDecimal>,
-  pub swap1_zil_amount: Option<BigDecimal>,
-  pub swap1_is_sending_zil: Option<bool>,
-
-  pub change_amount: Option<BigDecimal>,
+  pub amount_0_in: Option<BigDecimal>,
+  pub amount_1_in: Option<BigDecimal>,
+  pub amount_0_out: Option<BigDecimal>,
+  pub amount_1_out: Option<BigDecimal>,
 }
 
 #[derive(Debug, Identifiable, Queryable, QueryableByName, Serialize)]

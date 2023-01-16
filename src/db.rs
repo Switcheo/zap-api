@@ -28,16 +28,12 @@ pub fn get_swaps(
   if let Some(pool) = pool {
     let pools = pool.split(",");
     for p in pools {
-      query = query.or_filter(token_address.eq(p));
+      query = query.or_filter(pool_address.eq(p));
     }
   }
 
   if let Some(address) = address {
     query = query.filter(initiator_address.eq(address));
-  }
-
-  if let Some(is_incoming) = is_incoming {
-    query = query.filter(is_sending_zil.eq(is_incoming))
   }
 
   Ok(query
@@ -60,7 +56,7 @@ pub fn get_liquidity_changes(
   let mut query = liquidity_changes.into_boxed::<Pg>();
 
   if let Some(pool) = pool {
-    query = query.filter(token_address.eq(pool));
+    query = query.filter(pool_address.eq(pool));
   }
 
   if let Some(address) = address {
@@ -199,7 +195,7 @@ pub fn get_pools(
   use crate::schema::liquidity_changes::dsl::*;
 
   let query = liquidity_changes
-    .select(token_address)
+    .select(pool_address)
     .distinct();
 
   Ok(query.load(conn)?)
@@ -214,10 +210,12 @@ pub fn get_liquidity(
   use crate::schema::liquidity_changes::dsl::*;
 
   let mut query = liquidity_changes
-    .group_by(token_address)
+    .group_by(pool_address)
     .select((
-      sql::<Text>("token_address AS pool"),
-      sql::<Numeric>("SUM(change_amount) AS amount"),
+      sql::<Text>("pool_address AS pool"),
+      sql::<Numeric>("SUM(amount_0)"),
+      sql::<Numeric>("SUM(amount_1)"),
+      sql::<Numeric>("SUM(liquidity)"),
     ))
     .into_boxed::<Pg>();
 
@@ -242,14 +240,14 @@ pub fn get_volume(
   use crate::schema::swaps::dsl::*;
 
   let mut query = swaps
-    .group_by(token_address)
+    .group_by(pool_address)
     .select((
-      sql::<Text>("token_address AS pool"),
+      sql::<Text>("pool_address AS pool"),
       // in/out wrt pool
-      sql::<Numeric>("SUM(zil_amount * CAST(is_sending_zil AS integer)) AS in_zil_amount"),
-      sql::<Numeric>("SUM(token_amount * CAST(is_sending_zil AS integer)) AS out_token_amount"),
-      sql::<Numeric>("SUM(zil_amount * CAST(NOT(is_sending_zil) AS integer)) AS out_zil_amount"),
-      sql::<Numeric>("SUM(token_amount * CAST(NOT(is_sending_zil) AS integer)) AS in_token_amount"),
+      sql::<Numeric>("SUM(amount_0_in) AS total_amount_0_in"),
+      sql::<Numeric>("SUM(amount_1_in) AS total_amount_1_in"),
+      sql::<Numeric>("SUM(amount_0_out) AS total_amount_0_out"),
+      sql::<Numeric>("SUM(amount_1_out) AS total_amount_1_out"),
     ))
     .into_boxed::<Pg>();
 
@@ -280,11 +278,12 @@ pub fn get_volume_by_address(
   use crate::schema::swaps::dsl::*;
 
   let mut query = swaps
-    .group_by((token_address, initiator_address))
+    .group_by((pool_address, initiator_address))
     .select((
-      sql::<Text>("token_address AS pool"),
+      sql::<Text>("pool_address AS pool"),
       sql::<Text>("initiator_address AS address"),
-      sql::<Numeric>("SUM(zil_amount) AS amount"),
+      sql::<Numeric>("SUM(amount_0_in + amount_0_out) as amount_0"),
+      sql::<Numeric>("SUM(amount_1_in + amount_1_out) as amount_1"),
     ))
     .into_boxed::<Pg>();
 
@@ -370,16 +369,16 @@ pub fn get_time_weighted_liquidity(
   let sql = format!("
     WITH t AS (
       SELECT
-        token_address,
-        change_amount AS change,
+        pool_address,
+        liquidity,
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY token_address ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(liquidity) OVER (PARTITION BY pool_address ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
       {}
-      WINDOW w AS (PARTITION BY token_address ORDER BY block_timestamp ASC)
+      WINDOW w AS (PARTITION BY pool_address ORDER BY block_timestamp ASC)
     ),
     data AS (
       SELECT
@@ -388,16 +387,16 @@ pub fn get_time_weighted_liquidity(
       FROM t
     )
     SELECT
-      token_address AS pool,
-      CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
+      pool_address AS pool,
+      CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS liquidity
     FROM data
     WHERE start_timestamp >= $1
     OR (
       current > 0
       AND
-      (token_address, row_number) IN (SELECT token_address, MAX(row_number) FROM data WHERE start_timestamp < $1 GROUP BY token_address)
+      (pool_address, row_number) IN (SELECT pool_address, MAX(row_number) FROM data WHERE start_timestamp < $1 GROUP BY pool_address)
     )
-    GROUP BY token_address;
+    GROUP BY pool_address;
   ", address_fragment);
 
   let query = diesel::sql_query(sql)
@@ -436,16 +435,16 @@ pub fn get_time_weighted_liquidity_by_address(
   let sql = "
     WITH t AS (
       SELECT
-        token_address,
+        pool_address,
         initiator_address,
-        change_amount AS change,
+        liquidity,
         block_timestamp AS start_timestamp,
         ROW_NUMBER() OVER w AS row_number,
         LEAD(block_timestamp, 1, $2) OVER w AS end_timestamp,
-        SUM(change_amount) OVER (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
+        SUM(liquidity) OVER (PARTITION BY (pool_address, initiator_address) ORDER BY block_timestamp ASC, transaction_hash ASC ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS current
       FROM liquidity_changes
       WHERE block_timestamp < $2
-      WINDOW w AS (PARTITION BY (token_address, initiator_address) ORDER BY block_timestamp ASC)
+      WINDOW w AS (PARTITION BY (pool_address, initiator_address) ORDER BY block_timestamp ASC)
     ),
     data AS (
       SELECT
@@ -454,18 +453,18 @@ pub fn get_time_weighted_liquidity_by_address(
       FROM t
     )
     SELECT
-      token_address AS pool,
+      pool_address AS pool,
       initiator_address AS address,
-      CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS amount
+      CAST(SUM(data.weighted_liquidity) AS NUMERIC(38, 0)) AS liquidity
     FROM data
     WHERE start_timestamp >= $1
     OR (
       current > 0
       AND
-      (token_address, initiator_address, row_number) IN (SELECT token_address, initiator_address, MAX(row_number)
-        FROM data WHERE start_timestamp < $1 GROUP BY (token_address, initiator_address))
+      (pool_address, initiator_address, row_number) IN (SELECT pool_address, initiator_address, MAX(row_number)
+        FROM data WHERE start_timestamp < $1 GROUP BY (pool_address, initiator_address))
     )
-    GROUP BY (token_address, initiator_address);
+    GROUP BY (pool_address, initiator_address);
   ";
 
   let query = diesel::sql_query(sql)
@@ -494,7 +493,7 @@ pub fn get_transactions(
   if let Some(pool) = pool {
     let pools = pool.split(",");
     for p in pools {
-      query = query.or_filter(token_address.eq(p));
+      query = query.or_filter(pool_address.eq(p));
     }
   }
 

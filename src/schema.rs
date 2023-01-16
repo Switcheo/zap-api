@@ -49,10 +49,11 @@ table! {
         block_height -> Int4,
         block_timestamp -> Timestamp,
         initiator_address -> Varchar,
-        token_address -> Varchar,
-        change_amount -> Numeric,
-        token_amount -> Numeric,
-        zil_amount -> Numeric,
+        router_address -> Varchar,
+        pool_address -> Varchar,
+        amount_0 -> Numeric,
+        amount_1 -> Numeric,
+        liquidity -> Numeric,
     }
 }
 
@@ -64,10 +65,13 @@ table! {
         block_height -> Int4,
         block_timestamp -> Timestamp,
         initiator_address -> Varchar,
-        token_address -> Varchar,
-        token_amount -> Numeric,
-        zil_amount -> Numeric,
-        is_sending_zil -> Bool,
+        pool_address -> Varchar,
+        router_address -> Varchar,
+        to_address -> Varchar,
+        amount_0_in -> Numeric,
+        amount_1_in -> Numeric,
+        amount_0_out -> Numeric,
+        amount_1_out -> Numeric,
     }
 }
 
@@ -78,21 +82,20 @@ table! {
         block_height -> Int4,
         block_timestamp -> Timestamp,
         initiator_address -> Varchar,
-        token_address -> Varchar,
+        pool_address -> Varchar,
+        router_address -> Varchar,
+        to_address -> Nullable<Varchar>,
 
-        token_amount -> Nullable<Numeric>,
-        zil_amount -> Nullable<Numeric>,
+        amount_0 -> Nullable<Numeric>,
+        amount_1 -> Nullable<Numeric>,
+        liquidity -> Nullable<Numeric>,
 
         tx_type -> Varchar,
 
-        swap0_is_sending_zil -> Nullable<Bool>,
-
-        swap1_token_address -> Nullable<Varchar>,
-        swap1_token_amount -> Nullable<Numeric>,
-        swap1_zil_amount -> Nullable<Numeric>,
-        swap1_is_sending_zil -> Nullable<Bool>,
-
-        change_amount -> Nullable<Numeric>,
+        amount_0_in -> Nullable<Numeric>,
+        amount_1_in -> Nullable<Numeric>,
+        amount_0_out -> Nullable<Numeric>,
+        amount_1_out -> Nullable<Numeric>,
     }
 }
 
