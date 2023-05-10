@@ -23,6 +23,13 @@ pub struct RPCRequest {
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct MaybeTxEvent {
+  pub _eventname: Option<String>,
+  pub address: String,
+  pub params: Option<Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct TxEvent {
   pub _eventname: String,
   pub address: String,
@@ -49,13 +56,26 @@ pub struct TxTransition {
 pub struct TxReceipt {
   pub success: bool,
   pub accepted: Option<bool>,
-  pub event_logs: Option<Vec<TxEvent>>,
+  pub event_logs: Option<Vec<MaybeTxEvent>>,
   pub transitions: Option<Vec<TxTransition>>,
 }
 
 impl TxReceipt {
   pub fn events(&self) -> Vec<TxEvent> {
+    let init: Vec<TxEvent> = vec![];
     self.event_logs.clone().unwrap_or(vec![])
+      .into_iter()
+      .fold(init, |events, result| match result._eventname {
+        Some(eventname) => {
+          let event = TxEvent {
+            _eventname: eventname,
+            address: result.address.clone(),
+            params: result.params.unwrap().clone(),
+          };
+          return [&events[..], &[event]].concat();
+        },
+        None => events,
+      })
   }
   pub fn transitions(&self) -> Vec<TxTransition> {
     self.transitions.clone().unwrap_or(vec![])

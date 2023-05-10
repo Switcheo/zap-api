@@ -624,7 +624,7 @@ pub fn insert_block_sync(
 ) -> Result<(), diesel::result::Error> {
   use crate::schema::block_syncs::dsl::*;
 
-  let res = diesel::insert_into(block_syncs)
+  let _res = diesel::insert_into(block_syncs)
     .values(&new_block_sync)
     .on_conflict_do_nothing()
     .execute(conn);
