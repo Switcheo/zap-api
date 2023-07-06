@@ -303,6 +303,10 @@ impl EventFetchActor {
     trace!("ProcessTx: handle {} {}", block.block_height, tx_hash);
 
     let tx_result = self.zil_client.get_transaction(&tx_hash)?;
+    if !tx_result.receipt.success {
+      return Ok(());
+    }
+
     let events = tx_result.receipt.events();
     let events_len = events.len();
     if events_len > 0 {
